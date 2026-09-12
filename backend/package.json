@@ -1,0 +1,16 @@
+{
+  "name": "aipt-backend",
+  "private": true,
+  "scripts": {
+    "db:start": "supabase start",
+    "db:reset": "supabase db reset",
+    "db:push": "supabase db push",
+    "functions:serve": "supabase functions serve",
+    "admin:create-demo": "node scripts/create-demo-admin.mjs",
+    "client:create-demo": "node scripts/create-demo-client.mjs",
+    "auth:configure-email": "node scripts/configure-auth-email.mjs"
+  },
+  "dependencies": {
+    "@supabase/supabase-js": "^2.57.4"
+  }
+}

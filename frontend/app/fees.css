@@ -1,0 +1,522 @@
+.fees-sync-mode{display:flex;align-items:center;gap:8px;color:#5f6784;font-size:12px;font-weight:700}.fees-sync-mode select{min-height:38px;padding:0 10px;border:1px solid #d8ddea;border-radius:8px;background:#fff;color:#28304f;font:inherit}
+/* Fees Page Styling */
+
+.fees-page {
+  display: flex;
+  flex-direction: column;
+  min-height: 100vh;
+  background-color: #f5f5f5;
+}
+
+.fees-page section {
+  flex: 1;
+  padding: 20px;
+  max-width: 100%;
+}
+
+/* Header */
+.countries-topbar {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 20px;
+  background-color: #ffffff;
+  border-bottom: 1px solid #e0e0e0;
+  margin-bottom: 20px;
+  border-radius: 4px;
+}
+
+.countries-topbar p {
+  margin: 0;
+  font-size: 14px;
+  color: #666;
+}
+
+.countries-topbar b {
+  font-weight: 600;
+  color: #333;
+  margin: 0 5px;
+}
+
+.countries-topbar i {
+  margin: 0 5px;
+  color: #999;
+}
+
+.top-profile {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.top-profile span {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 40px;
+  height: 40px;
+  border-radius: 50%;
+  background: linear-gradient(135deg, #667eea 0%, var(--primary-color) 100%);
+  color: white;
+  font-weight: 600;
+  font-size: 14px;
+}
+
+.top-profile b {
+  display: flex;
+  flex-direction: column;
+  line-height: 1.4;
+}
+
+.top-profile small {
+  font-size: 12px;
+  color: #999;
+  font-weight: 400;
+}
+
+/* Heading */
+.fees-heading {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 20px;
+  padding: 20px;
+  background-color: #ffffff;
+  border-radius: 4px;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+}
+
+.fees-heading div {
+  flex: 1;
+}
+
+.fees-heading p {
+  margin: 0;
+  color: #666;
+  font-size: 14px;
+}
+
+.fees-kicker {
+  display: none;
+}
+
+.fees-heading button {
+  padding: 10px 20px;
+  background-color: #17a2b8;
+  color: white;
+  border: none;
+  border-radius: 4px;
+  cursor: pointer;
+  font-size: 14px;
+  font-weight: 500;
+  transition: background-color 0.3s;
+}
+
+.fees-heading button:hover:not(:disabled) {
+  background-color: #138496;
+}
+
+.fees-heading button:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+.fees-heading .fees-sync-button {
+  background-color: #198754;
+  margin-left: 10px;
+}
+
+.fees-heading .fees-sync-button:hover:not(:disabled) {
+  background-color: #157347;
+}
+
+.fees-sync-message {
+  flex-basis: 100%;
+  margin: 10px 0 0;
+  color: #146c43;
+  font-size: 13px;
+}
+
+.fees-sync-progress {
+  flex-basis: 100%;
+  margin: 12px 0 0;
+  padding: 13px 15px;
+  border: 1px solid #b9e7ee;
+  border-radius: 9px;
+  background: #f1fbfc;
+  color: #15566a;
+}
+
+.fees-sync-progress-header { display: flex; justify-content: space-between; gap: 12px; font-size: 12px; }
+.fees-sync-progress-header span { color: #078ba4; font-weight: 800; }
+.fees-sync-progress-track { height: 8px; margin: 9px 0 7px; overflow: hidden; border-radius: 99px; background: #d8edf0; }
+.fees-sync-progress-track span { display: block; height: 100%; border-radius: inherit; background: linear-gradient(90deg, #10a5bd, #087e9d); transition: width .35s ease; }
+.fees-sync-progress small { color: #4c7783; font-size: 11px; }
+
+/* Error/Alert Message */
+.fees-message {
+  padding: 16px;
+  background-color: #f8d7da;
+  border: 1px solid #f5c6cb;
+  border-radius: 4px;
+  margin-bottom: 20px;
+  color: #721c24;
+}
+
+.fees-message b {
+  display: block;
+  margin-bottom: 8px;
+  font-weight: 600;
+}
+
+.fees-message span {
+  display: block;
+  margin-bottom: 12px;
+  font-size: 14px;
+}
+
+.fees-message button {
+  padding: 6px 12px;
+  background-color: #721c24;
+  color: white;
+  border: none;
+  border-radius: 4px;
+  cursor: pointer;
+  font-size: 13px;
+  transition: background-color 0.3s;
+}
+
+.fees-message button:hover {
+  background-color: #5a151a;
+}
+
+/* Category Tabs */
+.fees-tabs {
+  display: flex;
+  gap: 8px;
+  margin-bottom: 20px;
+  padding: 0 20px;
+  border-bottom: 2px solid #e0e0e0;
+  background-color: #ffffff;
+  border-radius: 4px 4px 0 0;
+}
+
+.fees-tab {
+  padding: 16px 24px;
+  background-color: transparent;
+  border: none;
+  border-bottom: 3px solid transparent;
+  color: #666;
+  font-size: 14px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.3s;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.fees-tab:hover {
+  color: #333;
+  background-color: #f9f9f9;
+}
+
+.fees-tab.active {
+  color: #17a2b8;
+  border-bottom-color: #17a2b8;
+  background-color: #f9f9f9;
+}
+
+/* Toolbar / Filters */
+.fees-toolbar {
+  display: flex;
+  gap: 16px;
+  margin-bottom: 20px;
+  padding: 20px;
+  background-color: #ffffff;
+  border-radius: 4px;
+  flex-wrap: wrap;
+}
+
+.fees-toolbar label {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  flex: 1;
+  min-width: 200px;
+  font-size: 13px;
+  font-weight: 500;
+  color: #333;
+}
+
+.fees-toolbar input {
+  padding: 10px 12px;
+  border: 1px solid #ddd;
+  border-radius: 4px;
+  font-size: 13px;
+  transition: border-color 0.3s;
+}
+
+.fees-toolbar input:focus {
+  outline: none;
+  border-color: #17a2b8;
+  box-shadow: 0 0 0 3px rgba(23, 162, 184, 0.1);
+}
+
+/* Table Card */
+.fees-table-card {
+  background-color: #ffffff;
+  border-radius: 4px;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+  overflow: hidden;
+}
+
+.fees-table-scroll {
+  overflow-x: auto;
+  max-height: 600px;
+  overflow-y: auto;
+}
+
+.fees-table-scroll table {
+  width: 100%;
+  border-collapse: collapse;
+}
+
+/* Table Header */
+.fees-table-scroll thead {
+  position: sticky;
+  top: 0;
+  background-color: #f8f9fa;
+  z-index: 10;
+}
+
+.fees-table-scroll th {
+  padding: 16px;
+  text-align: left;
+  font-size: 13px;
+  font-weight: 600;
+  color: #333;
+  border-bottom: 2px solid #dee2e6;
+  white-space: nowrap;
+  background-color: #f8f9fa;
+}
+
+.fees-table-scroll th:not(.fees-country-heading),
+.fees-class-cell {
+  min-width: 92px;
+  text-align: center;
+}
+
+.fees-table-scroll thead tr:first-child th:not(.fees-country-heading) {
+  background-color: #eef6f7;
+  color: #15566a;
+}
+
+.fees-country-heading {
+  min-width: 180px;
+  width: 20%;
+}
+
+.fees-official,
+.fees-attorney,
+.fees-total {
+  text-align: right;
+  min-width: 140px;
+  width: 18%;
+}
+
+/* Table Body */
+.fees-table-scroll tbody tr {
+  border-bottom: 1px solid #e0e0e0;
+  transition: background-color 0.2s;
+}
+
+.fees-table-scroll tbody tr:hover {
+  background-color: #f9f9f9;
+}
+
+.fees-table-scroll td {
+  padding: 14px 16px;
+  font-size: 13px;
+  color: #333;
+}
+
+.fees-country-cell {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-weight: 500;
+}
+
+.fees-flag {
+  display: block;
+  width: 28px;
+  height: 20px;
+  object-fit: cover;
+  border-radius: 2px;
+  flex: 0 0 auto;
+}
+
+.fees-flag-fallback {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 24px;
+  height: 24px;
+  background-color: #e0e0e0;
+  border-radius: 3px;
+  font-size: 11px;
+  font-weight: 600;
+  color: #666;
+}
+
+.fees-service {
+  color: #666;
+  font-size: 12px;
+}
+
+.fees-official,
+.fees-attorney {
+  text-align: right;
+  color: #666;
+}
+
+.fees-total {
+  text-align: right;
+  font-weight: 600;
+  color: #333;
+}
+
+.fees-total strong {
+  color: #17a2b8;
+  font-weight: 700;
+}
+
+/* Empty State */
+.fees-state {
+  padding: 40px 16px !important;
+  text-align: center;
+  color: #999;
+  font-size: 14px;
+  background-color: #fafafa;
+}
+
+/* Pagination */
+.fees-pagination {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  gap: 16px;
+  padding: 20px;
+  border-top: 1px solid #e0e0e0;
+  background-color: #fafafa;
+}
+
+.fees-pagination button {
+  padding: 8px 16px;
+  background-color: #17a2b8;
+  color: white;
+  border: none;
+  border-radius: 4px;
+  cursor: pointer;
+  font-size: 13px;
+  font-weight: 500;
+  transition: background-color 0.3s;
+}
+
+.fees-pagination button:hover:not(:disabled) {
+  background-color: #138496;
+}
+
+.fees-pagination button:disabled {
+  background-color: #ccc;
+  cursor: not-allowed;
+}
+
+.fees-pagination span {
+  color: #666;
+  font-size: 13px;
+  min-width: 200px;
+  text-align: center;
+}
+
+/* Responsive Design */
+@media (max-width: 768px) {
+  .fees-page section {
+    padding: 12px;
+  }
+
+  .fees-tabs {
+    overflow-x: auto;
+    padding: 0 12px;
+  }
+
+  .fees-toolbar {
+    flex-direction: column;
+  }
+
+  .fees-toolbar label {
+    min-width: 100%;
+  }
+
+  .fees-table-scroll {
+    max-height: 400px;
+  }
+
+  .fees-table-scroll th,
+  .fees-table-scroll td {
+    padding: 10px 12px;
+    font-size: 12px;
+  }
+
+  .fees-country-heading {
+    min-width: 120px;
+  }
+
+  .fees-official,
+  .fees-attorney,
+  .fees-total {
+    min-width: 100px;
+  }
+
+  .fees-pagination {
+    flex-direction: column;
+    gap: 12px;
+  }
+
+  .fees-pagination span {
+    min-width: auto;
+  }
+}
+
+/* Loading Skeleton */
+@keyframes skeleton-loading {
+  0% {
+    background-color: #e0e0e0;
+  }
+  100% {
+    background-color: #f0f0f0;
+  }
+}
+
+.skeleton {
+  animation: skeleton-loading 1.5s infinite;
+}
+
+/* Print Styles */
+@media print {
+  .fees-heading button,
+  .fees-toolbar,
+  .fees-pagination {
+    display: none;
+  }
+
+  .fees-table-scroll {
+    max-height: none;
+    overflow: visible;
+  }
+
+  .fees-table-scroll tbody tr {
+    page-break-inside: avoid;
+  }
+}

@@ -1,0 +1,179 @@
+﻿import { createClient } from "npm:@supabase/supabase-js@2";
+import { GetObjectCommand, S3Client } from "https://esm.sh/@aws-sdk/client-s3@3.637.0?target=deno&bundle";
+import { getSignedUrl } from "https://esm.sh/@aws-sdk/s3-request-presigner@3.637.0?target=deno&bundle";
+import { SESv2Client, SendEmailCommand } from "https://esm.sh/@aws-sdk/client-sesv2@3.637.0?target=deno&bundle";
+
+const cors = { "Access-Control-Allow-Origin": "*", "Access-Control-Allow-Headers": "authorization, apikey, content-type, x-client-info", "Access-Control-Allow-Methods": "GET, PUT, DELETE, OPTIONS" };
+const json = (body: unknown, status = 200) => new Response(JSON.stringify(body), { status, headers: { ...cors, "Content-Type": "application/json" } });
+const s3 = new S3Client({ region: Deno.env.get("AWS_REGION") ?? "eu-north-1", credentials: { accessKeyId: Deno.env.get("AWS_ACCESS_KEY_ID")!, secretAccessKey: Deno.env.get("AWS_SECRET_ACCESS_KEY")! } });
+
+function escapeHtml(value: string) {
+  return value.replace(/[&<>"']/g, (character) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[character] ?? character));
+}
+
+async function sendApprovalEmail(email: string, clientName: string, companyName: string) {
+  const accessKeyId = Deno.env.get("AWS_SES_ACCESS_KEY_ID") || Deno.env.get("AWS_ACCESS_KEY_ID");
+  const secretAccessKey = Deno.env.get("AWS_SES_SECRET_ACCESS_KEY") || Deno.env.get("AWS_SECRET_ACCESS_KEY");
+  const from = Deno.env.get("SES_FROM_EMAIL");
+  if (!accessKeyId || !secretAccessKey || !from) throw Error("Approval email is not configured.");
+  const region = Deno.env.get("AWS_SES_REGION") || Deno.env.get("AWS_REGION") || "eu-north-1";
+  const loginUrl = `${(Deno.env.get("APP_URL") || "http://localhost:3000").replace(/\/$/, "")}/login`;
+  const ses = new SESv2Client({ region, credentials: { accessKeyId, secretAccessKey } });
+  await ses.send(new SendEmailCommand({ FromEmailAddress: from, Destination: { ToAddresses: [email] }, Content: { Simple: {
+    Subject: { Data: "Your Client Account Has Been Approved", Charset: "UTF-8" },
+    Body: { Html: { Data: `<p>Dear ${escapeHtml(clientName)},</p><p>Congratulations! Your account for <strong>${escapeHtml(companyName)}</strong> has been reviewed and approved.</p><p>Account Email: <strong>${escapeHtml(email)}</strong></p><p><a href='${loginUrl}'>Login to Your Account</a></p>`, Charset: "UTF-8" } },
+  } } }));
+}
+
+async function authenticate(request: Request) {
+  const token = request.headers.get("Authorization")?.replace(/^Bearer\s+/i, "");
+  const db = createClient(Deno.env.get("SUPABASE_URL")!, Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!);
+  const { data: { user } } = token ? await db.auth.getUser(token) : { data: { user: null } };
+  if (!user) return { db, user: null, error: json({ error: "Authentication is required." }, 401) };
+  const { data: profile } = await db.from("profiles").select("role").eq("id", user.id).single();
+  if (profile?.role !== "administrator") return { db, user: null, error: json({ error: "Administrator access is required." }, 403) };
+  return { db, user, error: null };
+}
+
+async function ensureClientForApprovedUser(db: ReturnType<typeof createClient>, userId: string, administratorId: string) {
+  const { data: authResult, error: authError } = await db.auth.admin.getUserById(userId);
+  const authUser = authResult.user;
+  if (authError || !authUser?.email) throw authError ?? Error('The registered email address could not be read.');
+  const metadata = authUser.user_metadata ?? {};
+  const registrationType = String(metadata.registration_type ?? 'new_company');
+  if (registrationType === 'existing_company') {
+    const claimId = String(metadata.registration_claim_id ?? '');
+    if (!claimId) throw Error('This existing-company registration has no verified invitation claim.');
+    const { data: claim, error: claimError } = await db.from('client_registration_claims')
+      .select('id,invitation_id,client_id,email,expires_at,consumed_at,claimed_by,invitation:client_invitations(id,membership_role,consumed_at,claimed_by,revoked_at,expires_at)')
+      .eq('id', claimId).eq('email', authUser.email.toLowerCase()).maybeSingle();
+    const invitation = Array.isArray(claim?.invitation) ? claim?.invitation[0] : claim?.invitation;
+    if (claimError || !claim || !invitation || !claim.consumed_at || claim.claimed_by !== userId || !invitation.consumed_at || invitation.claimed_by !== userId || invitation.revoked_at) {
+      throw Error('The company invitation is not linked to this registration. Ask the administrator to review the account details.');
+    }
+    const approved = await db.rpc('approve_existing_client_registration', { p_user_id: userId, p_administrator_id: administratorId, p_claim_id: claim.id, p_email: authUser.email.toLowerCase() });
+    if (approved.error) throw approved.error;
+    return approved.data as string;
+  }
+  const companyName = String(metadata.company_name ?? '').trim();
+  const phone = String(metadata.phone ?? '').trim();
+  const address = String(metadata.address ?? '').trim();
+  const countryName = String(metadata.country ?? '').trim();
+  if (!companyName || !phone || !address || !countryName) throw Error('The registration is missing company, phone, address, or country details.');
+  const countryResult = await db.from('countries').select('id').ilike('name', countryName).is('deleted_at', null).maybeSingle();
+  if (countryResult.error) throw countryResult.error;
+  if (!countryResult.data) throw Error('The registered country is not configured on the Countries page.');
+  const existingResult = await db.from('clients').select('id').ilike('email', authUser.email).is('deleted_at', null).maybeSingle();
+  if (existingResult.error) throw existingResult.error;
+  if (existingResult.data) throw Error('This company already exists. Register through a verified company invitation instead.');
+  const created = await db.from('clients').insert({
+    company_name: companyName,
+    email: authUser.email.toLowerCase(),
+    phone,
+    client_type: 'Corporate',
+    address,
+    country_id: countryResult.data.id,
+    notes: 'Created from an administrator-approved registration.',
+    status: 'Active',
+  }).select('id').single();
+  if (created.error) throw created.error;
+  const membership = await db.from('client_memberships').upsert({ client_id: created.data.id, user_id: userId, membership_role: 'company_admin', status: 'approved', approved_by: administratorId, approved_at: new Date().toISOString() }, { onConflict: 'client_id,user_id' });
+  if (membership.error) throw membership.error;
+  return created.data.id;
+}
+
+Deno.serve(async (request) => {
+  if (request.method === "OPTIONS") return new Response(null, { status: 200, headers: cors });
+  const { db, user, error } = await authenticate(request);
+  if (error) return error;
+  try {
+    if (request.method === "GET") {
+      const [{ data: users }, { data: profiles }] = await Promise.all([
+        db.auth.admin.listUsers({ page: 1, perPage: 1000 }),
+        db.from("profiles").select("id,full_name,company_name,logo_url,role,approval_status,approved_at,approved_by,reviewed_at,reviewed_by,account_status,failed_login_attempts,locked_at,last_login_ip,last_login_at,created_at,client_id,client:clients(id,assigned_id,company_name)"),
+      ]);
+      const profileMap = new Map((profiles ?? []).map((profile) => [profile.id, profile]));
+      return json(await Promise.all((users?.users ?? []).map(async (user) => {
+        const profile = profileMap.get(user.id);
+        const logoKey = profile?.logo_url ?? null;
+        return {
+          id: user.id,
+          email: user.email ?? "",
+          full_name: profile?.full_name || user.user_metadata?.full_name || "",
+          company_name: (Array.isArray(profile?.client) ? profile.client[0]?.company_name : profile?.client?.company_name) ?? profile?.company_name ?? user.user_metadata?.company_name ?? "",
+          client_id: profile?.client_id ?? null,
+          client_assigned_id: (Array.isArray(profile?.client) ? profile.client[0]?.assigned_id : profile?.client?.assigned_id) ?? null,
+          logo_url: logoKey?.startsWith("logo_company/") ? await getSignedUrl(s3, new GetObjectCommand({ Bucket: Deno.env.get("AWS_S3_BUCKET") ?? "aiptuploaddocument", Key: logoKey }), { expiresIn: 300 }) : null,
+          ip: profile?.last_login_ip ?? "-",
+          role: profile?.role ?? "client",
+          approval_status: profile?.approval_status ?? "pending",
+          registration_date: profile?.created_at ?? user.created_at,
+          approved_at: profile?.approved_at ?? null,
+          account_status: profile?.account_status ?? "active",
+          failed_login_attempts: profile?.failed_login_attempts ?? 0,
+          locked: Boolean(profile?.locked_at),
+          last_login_at: profile?.last_login_at ?? user.last_sign_in_at ?? null,
+        };
+      })));
+    }
+
+    const id = new URL(request.url).pathname.split("/").filter(Boolean).at(-1);
+
+    if (request.method === "PUT" && id) {
+      const body = await request.json();
+      const updates: Record<string, unknown> = {};
+      let approvedClientId: string | null = null;
+      if (body.approval_status === 'approved') {
+        approvedClientId = await ensureClientForApprovedUser(db, id, user.id);
+        updates.client_id = approvedClientId;
+        updates.account_status = 'active';
+        updates.approved_at = new Date().toISOString();
+        updates.approved_by = user.id;
+      }
+      if (["pending", "approved", "rejected", "suspended"].includes(body.approval_status)) {
+        updates.approval_status = body.approval_status;
+        updates.reviewed_at = new Date().toISOString();
+        updates.reviewed_by = user.id;
+        if (body.approval_status === "rejected" || body.approval_status === "suspended") updates.account_status = "inactive";
+      }
+      if (body.unlock === true) { updates.locked_at = null; updates.failed_login_attempts = 0; }
+      if (body.account_status === "active" || body.account_status === "inactive") updates.account_status = body.account_status;
+      const { data, error: updateError } = await db.from("profiles").update(updates).eq("id", id).select("id,full_name,company_name,logo_url,role,approval_status,approved_at,approved_by,reviewed_at,reviewed_by,account_status,failed_login_attempts,locked_at,last_login_ip,last_login_at,client_id").single();
+      if (updateError) throw updateError;
+      const auditResult = await db.from("audit_logs").insert({ actor_id: user.id, entity_type: "user_account", entity_id: id, action: "update", before_data: null, after_data: { approval_status: data.approval_status, account_status: data.account_status, client_id: data.client_id } });
+      if (auditResult.error) throw auditResult.error;
+      let emailDelivered: boolean | null = null;
+      if (body.approval_status === "approved" && approvedClientId) {
+        const [{ data: authResult }, { data: client }] = await Promise.all([
+          db.auth.admin.getUserById(id),
+          db.from("clients").select("company_name").eq("id", approvedClientId).single(),
+        ]);
+        const targetEmail = authResult.user?.email;
+        if (targetEmail && client) {
+          try { await sendApprovalEmail(targetEmail, data.full_name || "Client", client.company_name); emailDelivered = true; }
+          catch (cause) { console.error("Approval email failed", cause instanceof Error ? cause.message : "Unknown error"); emailDelivered = false; }
+        }
+      }
+      return json({ ...data, email_delivered: emailDelivered });
+    }
+
+    if (request.method === "DELETE" && id) {
+      const { error: profileError } = await db.from("profiles").delete().eq("id", id);
+      if (profileError) throw profileError;
+      const { error: authError } = await db.auth.admin.deleteUser(id);
+      if (authError) throw authError;
+      return new Response(null, { status: 204, headers: cors });
+    }
+
+    return json({ error: "Method not allowed." }, 405);
+  } catch (cause) {
+    return json({ error: cause instanceof Error ? cause.message : "Request failed." }, 400);
+  }
+});
+
+
+
+
+
+
+

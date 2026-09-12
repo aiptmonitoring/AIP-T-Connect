@@ -1,0 +1,2 @@
+alter table public.quotations drop constraint if exists quotations_status_check;
+alter table public.quotations add constraint quotations_status_check check (status in ('Draft', 'Pending Approval', 'Approved', 'Rejected', 'Cancelled', 'Posted'));

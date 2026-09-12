@@ -1,0 +1,32 @@
+.client-sidebar{position:relative;width:300px;flex-basis:300px;padding:23px 14px;transition:width .25s,flex-basis .25s, padding .25s;z-index:3}.client-sidebar-toggle{position:absolute;top:18px;right:11px;width:29px;height:29px;border:0;border-radius:7px;background:var(--primary-color);color:#fff;font-size:16px;line-height:1;cursor:pointer}.client-sidebar.is-collapsed{width:84px;flex-basis:84px;padding-right:10px;padding-left:10px}.client-sidebar.is-collapsed .client-brand,.client-sidebar.is-collapsed .client-search span,.client-sidebar.is-collapsed .client-search kbd,.client-sidebar.is-collapsed .client-nav span,.client-sidebar.is-collapsed .client-nav b,.client-sidebar.is-collapsed .client-support span,.client-sidebar.is-collapsed .client-account strong,.client-sidebar.is-collapsed .client-account i{display:none}.client-sidebar.is-collapsed .client-brand{margin-left:3px}.client-sidebar.is-collapsed .client-brand strong{font-size:23px}.client-sidebar.is-collapsed .client-search{justify-content:center;padding:0;background:transparent}.client-sidebar.is-collapsed .client-nav a{justify-content:center;padding:0}.client-sidebar.is-collapsed .client-support{justify-content:center}.client-sidebar.is-collapsed .client-account{justify-content:center;padding:9px}.client-sidebar.is-collapsed .client-sidebar-toggle{right:26px;transform:rotate(180deg)}.client-mobile-toggle{display:none}.client-sidebar-backdrop{display:none}@media(max-width:1023px){.client-mobile-toggle{display:grid;place-items:center;position:fixed;left:14px;top:13px;z-index:5;width:34px;height:34px;border:0;border-radius:7px;background:var(--primary-color);color:#fff;font-size:17px;cursor:pointer}.client-sidebar{position:fixed;left:0;top:0;bottom:0;width:84px;flex-basis:84px;padding:23px 10px;box-shadow:4px 0 14px #13094e12;transform:translateX(-100%);transition:transform .25s,width .25s}.client-sidebar.is-drawer-open{width:300px;flex-basis:300px;padding-right:14px;padding-left:14px;transform:translateX(0);box-shadow:12px 0 34px #160a5f45}.client-sidebar:not(.is-drawer-open) .client-brand,.client-sidebar:not(.is-drawer-open) .client-search span,.client-sidebar:not(.is-drawer-open) .client-search kbd,.client-sidebar:not(.is-drawer-open) .client-nav span,.client-sidebar:not(.is-drawer-open) .client-nav b,.client-sidebar:not(.is-drawer-open) .client-support span,.client-sidebar:not(.is-drawer-open) .client-account strong,.client-sidebar:not(.is-drawer-open) .client-account i{display:none}.client-sidebar:not(.is-drawer-open) .client-brand{margin-left:3px}.client-sidebar:not(.is-drawer-open) .client-brand strong{font-size:23px}.client-sidebar:not(.is-drawer-open) .client-search{justify-content:center;padding:0;background:transparent}.client-sidebar:not(.is-drawer-open) .client-nav a{justify-content:center;padding:0}.client-sidebar:not(.is-drawer-open) .client-support{justify-content:center}.client-sidebar:not(.is-drawer-open) .client-account{justify-content:center;padding:9px}.client-sidebar:not(.is-drawer-open) .client-sidebar-toggle{display:none}.client-sidebar.is-drawer-open .client-sidebar-toggle{display:block}.client-sidebar-backdrop{display:block;position:fixed;inset:0;z-index:2;border:0;background:#11132a66}.client-main{width:100%}.client-topbar{padding-left:63px}}@media(min-width:1024px){.client-sidebar{min-height:100vh}.client-mobile-toggle{display:none}}
+.client-sidebar-toggle svg,.client-mobile-toggle svg{width:17px;height:17px}.client-search{display:flex;align-items:center;gap:7px}.client-search>svg{width:16px;height:16px;flex:0 0 auto}
+.client-sidebar-toggle,.client-mobile-toggle{font-size:0}.client-search span{font-size:11px}.client-search kbd{font-size:9px}
+
+/* Teal reference sidebar theme */
+.client-sidebar{padding:30px 20px 20px;background:#26A9C5;font-family:Inter,"Segoe UI",Arial,sans-serif;box-shadow:inset -1px 0 rgba(255,255,255,.08),8px 0 28px rgba(0,111,126,.15)}
+.client-brand{margin:5px 18px 37px;line-height:.82;text-shadow:0 3px 12px rgba(0,88,101,.16)}
+.client-brand strong{font:700 48px Georgia,"Times New Roman",serif;letter-spacing:1px}
+.client-brand small{display:block;margin-top:12px;font:500 11px Inter,"Segoe UI",sans-serif;letter-spacing:2.7px}
+.client-sidebar-toggle{top:27px;right:18px;width:42px;height:42px;border-radius:12px;background:transparent}
+.client-sidebar-toggle:hover,.client-mobile-toggle:hover{background:transparent}
+.client-sidebar-toggle svg,.client-mobile-toggle svg{width:29px;height:29px;stroke-width:2.2}
+.client-search{height:58px;margin:0 0 31px;padding:0 17px;gap:14px;border:1px solid rgba(255,255,255,.04);border-radius:14px;background:rgba(255,255,255,.10);color:rgba(255,255,255,.82);box-shadow:inset 0 1px rgba(255,255,255,.04);transition:background .18s ease}
+.client-search:hover{background:rgba(255,255,255,.10)}
+.client-search>svg{width:25px;height:25px;flex-basis:25px;stroke-width:1.8}
+.client-search span{font-size:15px;font-weight:500;color:rgba(255,255,255,.63);letter-spacing:.1px}
+.client-search kbd{display:none}
+.client-nav{gap:7px}
+.client-nav a{min-height:54px;gap:17px;padding:0 17px;border-radius:12px;font-size:15px;font-weight:600;letter-spacing:.1px;transition:background .18s ease,transform .18s ease,box-shadow .18s ease}
+.client-nav i{display:grid;place-items:center;width:25px;font-size:0}
+.client-nav i svg,.client-support svg{width:25px;height:25px;stroke-width:1.8}
+.client-nav a:hover,.client-support:hover{background:transparent;transform:none}
+.client-nav a.is-active{background:rgba(255,255,255,.14);box-shadow:inset 0 1px rgba(255,255,255,.05),0 8px 22px rgba(0,104,119,.12)}
+.client-nav b{background:rgba(255,255,255,.22)}
+.client-support{min-height:54px;margin-top:auto;padding:0 17px;border-radius:12px;font-size:14px;font-weight:600;transition:background .18s ease,transform .18s ease}
+.client-account{margin-top:8px;padding:12px;border-radius:12px;background:rgba(255,255,255,.10)}
+.client-mobile-toggle{background:#26A9C5;box-shadow:0 7px 18px rgba(0,111,126,.28)}
+@media(max-width:1023px){.client-sidebar.is-drawer-open{padding-right:20px;padding-left:20px}}
+.client-sidebar,.client-sidebar a,.client-sidebar button,.client-sidebar span,.client-sidebar small,.client-sidebar kbd{color:#fff}
+
+
+.client-nav a.is-active:hover{background:rgba(255,255,255,.14);transform:none}

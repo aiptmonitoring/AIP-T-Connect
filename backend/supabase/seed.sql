@@ -1,0 +1,1 @@
+-- Add non-production seed data only after the database schema is approved.

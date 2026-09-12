@@ -1,0 +1,161 @@
+:root {
+  --primary-color: #26A9C5;
+  --primary-color-hover: #16768B;
+  --primary-color-active: #105D6D;
+  --primary-color-soft: #E7F7FA;
+  --primary-color-border: #79C9D9;
+  --primary-color-focus: rgba(38, 169, 197, .34);
+  --primary-surface-text: #fff;
+  --dashboard-action-color: var(--primary-color);
+}
+
+/* Shared primary action system: existing classes plus future reusable hooks. */
+:is(.admin-app-shell, .client-app-shell) :is(
+  .aipt-button-primary,
+  .country-add,
+  .add,
+  .add-client,
+  .modal-primary,
+  .danger-primary,
+  .delete-primary,
+  .statement-delete,
+  .procedure-import,
+  .overview-button-primary,
+  .client-primary,
+  .support-send-button
+),
+:is(.admin-app-shell, .client-app-shell) :is(button, a)[class*="delete"],
+:is(.admin-app-shell, .client-app-shell) :is(button, a)[class*="danger"],
+:is(.admin-app-shell, .client-app-shell) :is(button, a)[aria-label*="delete" i],
+.admin-app-shell .country-icon,
+.admin-app-shell .services-card td button,
+.admin-app-shell .client-row-actions button,
+.admin-app-shell .timeline-entry-actions button,
+.admin-app-shell .country-panel-footer button:last-child,
+.admin-app-shell .services-modal footer button:last-child,
+.admin-app-shell .project-modal footer button:last-child,
+.admin-app-shell .notification-modal footer button:last-child,
+.admin-app-shell .statement-modal footer button:last-child,
+.client-app-shell .support-request-modal footer button:last-child,
+.admin-app-shell .project-export-actions button,
+.admin-app-shell .procedure-export > button,
+.admin-app-shell .procedure-export > div button {
+  border-color: var(--primary-color) !important;
+  background: var(--primary-color) !important;
+  color: var(--primary-surface-text) !important;
+  box-shadow: 0 7px 16px rgba(38, 169, 197, .22) !important;
+}
+
+:is(.admin-app-shell, .client-app-shell) :is(
+  .aipt-button-primary,
+  .country-add,
+  .add,
+  .add-client,
+  .modal-primary,
+  .danger-primary,
+  .delete-primary,
+  .statement-delete,
+  .procedure-import,
+  .overview-button-primary,
+  .client-primary,
+  .support-send-button
+):hover:not(:disabled),
+:is(.admin-app-shell, .client-app-shell) :is(button, a)[class*="delete"]:hover:not(:disabled),
+:is(.admin-app-shell, .client-app-shell) :is(button, a)[class*="danger"]:hover:not(:disabled),
+.admin-app-shell .country-icon:hover:not(:disabled),
+.admin-app-shell .services-card td button:hover:not(:disabled),
+.admin-app-shell .client-row-actions button:hover:not(:disabled),
+.admin-app-shell .timeline-entry-actions button:hover:not(:disabled),
+.admin-app-shell .project-export-actions button:hover:not(:disabled),
+.admin-app-shell .procedure-export button:hover:not(:disabled) {
+  border-color: var(--primary-color-hover) !important;
+  background: var(--primary-color-hover) !important;
+  color: #fff !important;
+  transform: translateY(-1px);
+}
+
+:is(.admin-app-shell, .client-app-shell) :is(button, a):active:not(:disabled) {
+  transform: translateY(0);
+}
+
+:is(.admin-app-shell, .client-app-shell) :is(button, a):focus-visible,
+:is(.admin-app-shell, .client-app-shell) :is(input, select, textarea):focus-visible {
+  outline: 3px solid var(--primary-color-focus) !important;
+  outline-offset: 2px;
+}
+
+:is(.admin-app-shell, .client-app-shell) button:disabled,
+:is(.admin-app-shell, .client-app-shell) [aria-disabled="true"] {
+  cursor: not-allowed !important;
+  opacity: .55 !important;
+  transform: none !important;
+  box-shadow: none !important;
+}
+
+:is(.admin-app-shell, .client-app-shell) button[aria-busy="true"],
+:is(.admin-app-shell, .client-app-shell) button.is-loading {
+  cursor: wait !important;
+  opacity: .72;
+}
+
+/* Supported Import, Export, Word, PDF and Print toolbars. */
+.admin-app-shell :is(.procedure-import, .procedure-export > button, .project-export-actions button),
+.admin-app-shell :is(button, a)[aria-label*="import" i],
+.admin-app-shell :is(button, a)[aria-label*="export" i],
+.admin-app-shell :is(button, a)[aria-label*="print" i] {
+  border-color: var(--primary-color) !important;
+  background: var(--primary-color) !important;
+  color: var(--primary-surface-text) !important;
+}
+
+/* Primary controls, links and icons that previously used legacy violet. */
+:is(.admin-app-shell, .client-app-shell) :is(
+  .panel-title a,
+  .activity-row > span,
+  .quick-actions > a > b,
+  .quick-actions > a > i,
+  .client-toolbar label,
+  .client-project-toolbar svg,
+  .timeline-toggle,
+  .notification-dot
+) { color: var(--primary-color-hover) !important; }
+
+:is(.admin-app-shell, .client-app-shell) :is(input, select, textarea):focus {
+  border-color: var(--primary-color) !important;
+  box-shadow: 0 0 0 3px var(--primary-color-focus) !important;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  :is(.admin-app-shell, .client-app-shell) :is(button, a) { transition: none !important; }
+}
+/* Account settings use the same primary control token outside the dashboard shell wrapper. */
+.account-card footer button:last-child {
+  border-color: var(--primary-color) !important;
+  background: var(--primary-color) !important;
+  color: var(--primary-surface-text) !important;
+  box-shadow: 0 7px 16px rgba(38,169,197,.22) !important;
+}
+.account-card footer button:last-child:hover:not(:disabled) { background: var(--primary-color-hover) !important; color:#fff !important; }
+.account-card :is(input,select,textarea):focus { border-color:var(--primary-color) !important; box-shadow:0 0 0 3px var(--primary-color-focus) !important; }
+/* Remaining role-specific primary actions discovered by the full audit. */
+.admin-app-shell :is(.customer-stats button, .conversation-panel footer button, .customer-details a),
+.client-app-shell :is(.client-support-hero > button, .client-chat-welcome button, .client-conversation-list > header button, .client-chat-card > footer .support-send-button) {
+  border-color: var(--primary-color) !important;
+  background: var(--primary-color) !important;
+  color: var(--primary-surface-text) !important;
+  box-shadow: 0 7px 16px rgba(38,169,197,.22) !important;
+}
+.admin-app-shell :is(.customer-stats button, .conversation-panel footer button, .customer-details a):hover:not(:disabled),
+.client-app-shell :is(.client-support-hero > button, .client-chat-welcome button, .client-conversation-list > header button, .client-chat-card > footer .support-send-button):hover:not(:disabled) {
+  border-color: var(--primary-color-hover) !important;
+  background: var(--primary-color-hover) !important;
+  color: #fff !important;
+}
+:is(.admin-app-shell,.client-app-shell) :is(.client-kicker,.support-mark,.client-conversation-list > label,.client-topbar p b,.client-user button) {
+  color: var(--primary-color-hover) !important;
+}
+:is(.admin-app-shell,.client-app-shell) :is(.timeline-toggle.active,.statement-tabs button.active,.conversation-list nav button.active) {
+  border-color: var(--primary-color) !important;
+  background: var(--primary-color-soft) !important;
+  color: var(--primary-color-active) !important;
+}

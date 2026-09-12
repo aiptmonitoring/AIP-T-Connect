@@ -1,0 +1,12 @@
+# Local credentials and exported secret material
+importtant/*.json
+importtant/*.csv
+backend/.env
+frontend/.env.local
+
+# Local dependencies and generated output
+node_modules/
+backend/node_modules/
+frontend/node_modules/
+.next/
+frontend/.next/

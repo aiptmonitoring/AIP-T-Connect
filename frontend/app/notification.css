@@ -1,0 +1,108 @@
+.notification-page table {
+  min-width: 1050px;
+  table-layout: auto;
+}
+.notification-page th:first-child {
+  width: 14%;
+}
+.notification-page th:nth-child(2) {
+  width: 27%;
+}
+.notification-page th:nth-child(3) {
+  width: 19%;
+}
+.notification-page th:nth-child(4) {
+  width: 23%;
+}
+.notification-page th:last-child {
+  width: 17%;
+}
+.notification-time,
+.document-link small {
+  display: block;
+  margin-top: 6px;
+  color: #687093;
+  font-size: 12px;
+}
+.document-link {
+  border: 0;
+  background: transparent;
+  color: #161a48;
+  text-align: left;
+  cursor: pointer;
+}
+.document-link:disabled {
+  color: #8b91a8;
+  cursor: default;
+}
+.notification-modal {
+  width: min(100%, 610px) !important;
+  max-height: 92vh;
+  overflow: auto;
+  padding: 30px 32px;
+  border-radius: 14px;
+}
+.notification-modal .country-panel-heading { margin-bottom: 28px; }
+.notification-modal .country-panel-heading h2 { font-size: 18px; color: #10143f; }
+.notification-modal .country-label { gap: 9px; margin-bottom: 22px; font-size: 13px; color: #151a45; }
+.notification-field-label { display: inline-flex; align-items: center; gap: 4px; font-weight: 600; }
+.notification-field-label em { margin: 0; }
+.notification-modal .country-label input,
+.notification-modal .country-label select {
+  min-height: 44px;
+  border: 1px solid #dfe2ed;
+  border-radius: 7px;
+  padding: 10px 13px;
+  font: 13px Inter;
+}
+.notification-modal .country-label select[multiple] {
+  height: 105px;
+}
+.notification-modal .country-label textarea {
+  height: 112px;
+  padding: 14px;
+  border: 1px solid #dfe2ed;
+  border-radius: 7px;
+  resize: vertical;
+  font: 13px Inter;
+}
+.notification-character-count { margin-top: -4px; text-align: right; color: #68739d; font-size: 12px; font-weight: 400; }
+.notification-date-control { position: relative; display: flex; align-items: center; }
+.notification-date-control svg { position: absolute; right: 14px; width: 17px; height: 17px; color: #4c5372; pointer-events: none; }
+.notification-date-control input { width: 100%; padding-right: 44px !important; color: #38415f; letter-spacing: .01em; }
+.notification-date-control input::-webkit-calendar-picker-indicator { opacity: 0; cursor: pointer; }
+.notification-modal .country-panel-footer { margin-top: 28px; padding-top: 20px; border-top: 1px solid #e5e7f0; }
+.notification-modal .country-panel-footer button { min-width: 85px; height: 40px; }
+.notification-file-input { display: none; }
+.notification-dropzone { display: flex; align-items: center; gap: 13px; min-height: 74px; border: 1px solid #dfe2ed; border-radius: 8px; padding: 11px 14px; color: #58628c; cursor: pointer; }
+.notification-dropzone:hover, .notification-dropzone:focus { border-color: var(--primary-color); outline: 2px solid var(--primary-color-soft); }
+.notification-upload-icon { display: grid; place-items: center; flex: 0 0 45px; width: 45px; height: 45px; border-radius: 7px; background: var(--primary-color-soft); color: var(--primary-color); font-size: 25px; }
+.notification-dropzone > span:nth-child(2) { flex: 1; font-weight: 400; }
+.notification-dropzone b { color: #161b48; }
+.notification-dropzone small { display: block; margin-top: 5px; color: #68739d; font-size: 12px; font-weight: 400; }
+.notification-dropzone button { height: 40px; min-width: 86px; border: 1px solid #d9ddeb; border-radius: 7px; background: #fff; color: #1a1e48; font-weight: 600; cursor: pointer; }
+.notification-page .procedure-controls {
+  flex-wrap: wrap;
+  justify-content: flex-end;
+}
+.notification-modal .country-multiselect { position: relative; border: 1px solid #d9deee; border-radius: 8px; background: #fff; transition: border-color .18s, box-shadow .18s; }
+.notification-modal .country-multiselect:focus-within { border-color: var(--primary-color); box-shadow: 0 0 0 3px var(--primary-color-soft); }
+.country-search-control { display: flex; align-items: center; min-height: 45px; padding: 0 9px 0 13px; }
+.country-search-control > span { color: #747e9e; font-size: 20px; line-height: 1; }
+.notification-modal .country-search-control input { min-width: 0; flex: 1; min-height: 43px; border: 0; padding: 0 10px; outline: 0; color: #27304e; }
+.country-search-control button { width: 32px; height: 32px; border: 0; border-radius: 6px; background: transparent; color: #565f80; font-size: 18px; cursor: pointer; }
+.country-search-control button:hover { background: var(--primary-color-soft); color: var(--primary-color); }
+.notification-modal .country-tags { display: flex; gap: 6px; flex-wrap: wrap; padding: 0 10px 10px; }
+.notification-modal .country-tags button { display: inline-flex; align-items: center; gap: 6px; border: 0; border-radius: 999px; background: var(--primary-color-soft); color: #272055; padding: 5px 8px 5px 6px; font: 12px Inter; cursor: pointer; }
+.notification-modal .country-tags button:hover { background: var(--primary-color-soft); }
+.country-select-flag { display: block; width: 19px; height: 14px; border-radius: 3px; object-fit: cover; box-shadow: 0 0 0 1px #d9ddeb; }
+.country-select-flag-fallback { display: grid; place-items: center; background: var(--primary-color-soft); color: #555d80; font-size: 8px; font-weight: 700; }
+.notification-modal .country-tags i { color: #615887; font-size: 15px; font-style: normal; line-height: 1; }
+.notification-modal .country-options { position: absolute; z-index: 8; top: calc(100% + 6px); right: 0; left: 0; max-height: 220px; overflow: auto; border: 1px solid #d9deee; border-radius: 8px; padding: 5px; background: #fff; box-shadow: 0 14px 28px #18204724; }
+.notification-modal .country-options button { display: flex; align-items: center; gap: 10px; width: 100%; min-height: 44px; border: 0; border-radius: 6px; padding: 7px 9px; background: transparent; color: #27304e; text-align: left; cursor: pointer; }
+.notification-modal .country-options button:hover, .notification-modal .country-options button.is-selected { background: var(--primary-color-soft); }
+.notification-modal .country-options button > span { flex: 1; font-size: 13px; }
+.notification-modal .country-options small { display: block; margin-top: 2px; color: #77809e; font-size: 11px; }
+.notification-modal .country-options i { display: grid; place-items: center; width: 19px; height: 19px; border: 1px solid #d3d7e5; border-radius: 5px; color: #fff; font-size: 12px; font-style: normal; }
+.notification-modal .country-options .is-selected i { border-color: var(--primary-color); background: var(--primary-color); }
+.notification-modal .country-options p { margin: 10px; color: #77809e; font-size: 13px; text-align: center; }

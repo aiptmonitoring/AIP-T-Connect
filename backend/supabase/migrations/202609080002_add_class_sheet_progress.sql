@@ -1,0 +1,2 @@
+alter table public.fee_sync_runs
+  alter column sheet_progress set default '{"Trademark":"pending","Patent":"pending","Design":"pending","Copyright":"pending","Others":"pending","Classes":"pending"}'::jsonb;

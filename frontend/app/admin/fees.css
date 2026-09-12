@@ -1,0 +1,817 @@
+/* Admin Fees Page Styles */
+
+.fees-page {
+  padding: 20px;
+  background: #f5f7fa;
+  min-height: 100vh;
+}
+
+.fees-page section {
+  max-width: 1400px;
+  margin: 0 auto;
+}
+
+/* ============================================================================
+   HEADER
+   ============================================================================ */
+
+.countries-topbar {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 30px;
+  font-size: 14px;
+  color: #666;
+}
+
+.countries-topbar p {
+  margin: 0;
+}
+
+.countries-topbar i {
+  margin: 0 8px;
+  opacity: 0.5;
+}
+
+.countries-topbar b {
+  color: #333;
+  font-weight: 600;
+}
+
+.top-profile {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 8px 16px;
+  background: white;
+  border-radius: 6px;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+}
+
+.top-profile span {
+  width: 36px;
+  height: 36px;
+  border-radius: 50%;
+  background: linear-gradient(135deg, #667eea 0%, var(--primary-color) 100%);
+  color: white;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-weight: bold;
+  font-size: 12px;
+}
+
+.top-profile b {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.top-profile small {
+  font-size: 12px;
+  color: #999;
+  font-weight: normal;
+}
+
+/* ============================================================================
+   SYNC CONTROLS
+   ============================================================================ */
+
+.fees-admin-controls {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 20px;
+  padding: 16px;
+  background: white;
+  border-radius: 8px;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+}
+
+.fees-sync-status {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  font-size: 14px;
+  font-weight: 500;
+}
+
+.status-indicator {
+  font-size: 20px;
+  display: inline-block;
+  animation: pulse 2s infinite;
+}
+
+.status-indicator.healthy {
+  color: #10b981;
+  animation: none;
+}
+
+.status-indicator.syncing {
+  color: #f59e0b;
+}
+
+.status-indicator.success {
+  color: #10b981;
+  animation: none;
+}
+
+.status-indicator.error {
+  color: #ef4444;
+  animation: none;
+}
+
+@keyframes pulse {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.5; }
+}
+
+.fees-sync-buttons {
+  display: flex;
+  gap: 8px;
+}
+
+.btn-sync-now,
+.btn-schedule,
+.btn-history {
+  padding: 8px 16px;
+  background: #667eea;
+  color: white;
+  border: none;
+  border-radius: 6px;
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.btn-sync-now:hover:not(:disabled) {
+  background: #5568d3;
+  transform: translateY(-1px);
+}
+
+.btn-sync-now:disabled,
+.btn-schedule:disabled,
+.btn-history:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.btn-schedule {
+  background: #ec4899;
+}
+
+.btn-schedule:hover:not(:disabled) {
+  background: #db2777;
+}
+
+.btn-history {
+  background: var(--primary-color);
+}
+
+.btn-history:hover:not(:disabled) {
+  background: var(--primary-color);
+}
+
+/* ============================================================================
+   SYNC PROGRESS PANEL
+   ============================================================================ */
+
+.fees-sync-progress-panel {
+  margin-bottom: 20px;
+  padding: 24px;
+  background: white;
+  border-radius: 8px;
+  border-left: 4px solid #f59e0b;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+}
+
+.progress-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 20px;
+}
+
+.progress-header h3 {
+  margin: 0;
+  font-size: 16px;
+  font-weight: 700;
+  color: #333;
+  letter-spacing: 0.5px;
+}
+
+.btn-cancel {
+  padding: 6px 12px;
+  background: #ef4444;
+  color: white;
+  border: none;
+  border-radius: 4px;
+  font-size: 13px;
+  cursor: pointer;
+  transition: background 0.2s;
+}
+
+.btn-cancel:hover {
+  background: #dc2626;
+}
+
+.progress-bar-container {
+  margin-bottom: 20px;
+}
+
+.progress-label {
+  font-size: 12px;
+  font-weight: 600;
+  color: #666;
+  margin-bottom: 8px;
+}
+
+.progress-bar {
+  height: 8px;
+  background: #e5e7eb;
+  border-radius: 4px;
+  overflow: hidden;
+  position: relative;
+}
+
+.progress-fill {
+  height: 100%;
+  background: linear-gradient(90deg, #667eea 0%, var(--primary-color) 100%);
+  border-radius: 4px;
+  transition: width 0.3s ease;
+  position: relative;
+}
+
+.progress-fill::after {
+  content: '';
+  position: absolute;
+  right: 0;
+  top: 0;
+  bottom: 0;
+  width: 2px;
+  background: rgba(255, 255, 255, 0.5);
+}
+
+.progress-percent {
+  display: inline-block;
+  margin-top: 6px;
+  font-size: 12px;
+  font-weight: 700;
+  color: #667eea;
+}
+
+.progress-operation {
+  margin-bottom: 20px;
+  padding: 12px;
+  background: #f9fafb;
+  border-radius: 6px;
+}
+
+.operation-label {
+  font-size: 12px;
+  font-weight: 600;
+  color: #999;
+  margin-bottom: 4px;
+}
+
+.operation-value {
+  font-size: 14px;
+  font-weight: 500;
+  color: #333;
+  font-family: 'Monaco', monospace;
+}
+
+.progress-sheets {
+  display: flex;
+  gap: 16px;
+  margin-bottom: 20px;
+  flex-wrap: wrap;
+}
+
+.sheet-progress {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 14px;
+  font-weight: 500;
+}
+
+.sheet-indicator {
+  font-size: 16px;
+  min-width: 16px;
+  display: inline-block;
+  text-align: center;
+}
+
+.sheet-indicator.complete {
+  color: #10b981;
+}
+
+.sheet-indicator.active {
+  color: #f59e0b;
+  animation: pulse 1s infinite;
+}
+
+.sheet-indicator.pending {
+  color: #d1d5db;
+}
+
+.sheet-name {
+  color: #333;
+}
+
+.progress-stats {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(120px, 1fr));
+  gap: 12px;
+  margin-bottom: 16px;
+}
+
+.stat {
+  padding: 12px;
+  background: #f9fafb;
+  border-radius: 6px;
+  text-align: center;
+}
+
+.stat.error {
+  background: #fee2e2;
+}
+
+.stat-label {
+  font-size: 11px;
+  font-weight: 600;
+  color: #999;
+  margin-bottom: 6px;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.stat-value {
+  font-size: 18px;
+  font-weight: 700;
+  color: #333;
+}
+
+.stat.error .stat-value {
+  color: #dc2626;
+}
+
+.progress-error {
+  padding: 12px;
+  background: #fee2e2;
+  border-left: 3px solid #dc2626;
+  border-radius: 4px;
+  margin-top: 16px;
+}
+
+.error-label {
+  font-size: 11px;
+  font-weight: 600;
+  color: #991b1b;
+  margin-bottom: 4px;
+}
+
+.error-message {
+  font-size: 13px;
+  color: #7f1d1d;
+  font-family: monospace;
+  word-break: break-word;
+}
+
+/* ============================================================================
+   SYNC HISTORY PANEL
+   ============================================================================ */
+
+.fees-sync-history-panel {
+  margin-bottom: 20px;
+  padding: 20px;
+  background: white;
+  border-radius: 8px;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+}
+
+.fees-sync-history-panel h3 {
+  margin: 0 0 16px 0;
+  font-size: 16px;
+  font-weight: 700;
+  color: #333;
+}
+
+.history-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 13px;
+}
+
+.history-table thead {
+  background: #f9fafb;
+  border-bottom: 2px solid #e5e7eb;
+}
+
+.history-table th {
+  padding: 12px;
+  text-align: left;
+  font-weight: 600;
+  color: #666;
+}
+
+.history-table td {
+  padding: 12px;
+  border-bottom: 1px solid #e5e7eb;
+  color: #333;
+}
+
+.history-table tr:hover {
+  background: #f9fafb;
+}
+
+.badge {
+  display: inline-block;
+  padding: 4px 8px;
+  border-radius: 4px;
+  font-size: 11px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.badge.completed {
+  background: #d1fae5;
+  color: #065f46;
+}
+
+.badge.failed {
+  background: #fee2e2;
+  color: #991b1b;
+}
+
+.badge.interrupted {
+  background: #fef3c7;
+  color: #92400e;
+}
+
+.history-table td.error {
+  color: #dc2626;
+  font-weight: 600;
+}
+
+/* ============================================================================
+   HEADING & BUTTONS
+   ============================================================================ */
+
+.fees-heading {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 20px;
+}
+
+.fees-heading div {
+  flex: 1;
+}
+
+.fees-heading p {
+  margin: 0;
+  font-size: 14px;
+  color: #666;
+}
+
+.fees-heading button {
+  padding: 8px 16px;
+  background: #667eea;
+  color: white;
+  border: none;
+  border-radius: 6px;
+  font-size: 13px;
+  cursor: pointer;
+  transition: background 0.2s;
+}
+
+.fees-heading button:hover:not(:disabled) {
+  background: #5568d3;
+}
+
+.fees-heading button:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+/* ============================================================================
+   ERROR MESSAGE
+   ============================================================================ */
+
+.fees-message {
+  padding: 16px;
+  margin-bottom: 20px;
+  background: #fee2e2;
+  border-left: 4px solid #dc2626;
+  border-radius: 6px;
+  display: flex;
+  gap: 16px;
+  align-items: center;
+}
+
+.fees-message b {
+  color: #991b1b;
+  font-weight: 600;
+  flex-shrink: 0;
+}
+
+.fees-message span {
+  color: #7f1d1d;
+  font-size: 13px;
+  flex: 1;
+}
+
+.fees-message button {
+  padding: 6px 12px;
+  background: #dc2626;
+  color: white;
+  border: none;
+  border-radius: 4px;
+  font-size: 12px;
+  cursor: pointer;
+  flex-shrink: 0;
+}
+
+.fees-message button:hover {
+  background: #b91c1c;
+}
+
+/* ============================================================================
+   CATEGORY TABS
+   ============================================================================ */
+
+.fees-category-tabs {
+  display: flex;
+  gap: 0;
+  margin-bottom: 20px;
+  border-bottom: 2px solid #e5e7eb;
+  background: white;
+  border-radius: 8px 8px 0 0;
+  overflow: hidden;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+}
+
+.fees-category-tabs button {
+  padding: 12px 24px;
+  background: transparent;
+  color: #666;
+  border: none;
+  border-bottom: 3px solid transparent;
+  font-size: 14px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.fees-category-tabs button:hover {
+  background: #f9fafb;
+  color: #333;
+}
+
+.fees-category-tabs button.active {
+  color: #667eea;
+  border-bottom-color: #667eea;
+  background: #f9fafb;
+}
+
+/* ============================================================================
+   FILTERS
+   ============================================================================ */
+
+.fees-filters {
+  display: flex;
+  gap: 12px;
+  margin-bottom: 20px;
+  flex-wrap: wrap;
+}
+
+.filter-input {
+  flex: 1;
+  min-width: 200px;
+  padding: 10px 12px;
+  background: white;
+  border: 1px solid #d1d5db;
+  border-radius: 6px;
+  font-size: 13px;
+  transition: border-color 0.2s;
+}
+
+.filter-input:focus {
+  outline: none;
+  border-color: #667eea;
+  box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
+}
+
+.filter-input::placeholder {
+  color: #999;
+}
+
+/* ============================================================================
+   TABLE & DATA
+   ============================================================================ */
+
+.fees-table {
+  width: 100%;
+  border-collapse: collapse;
+  background: white;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+  border-radius: 8px;
+  overflow: hidden;
+  font-size: 13px;
+}
+
+.fees-table thead {
+  background: #f9fafb;
+  border-bottom: 2px solid #e5e7eb;
+  position: sticky;
+  top: 0;
+  z-index: 10;
+}
+
+.fees-table th {
+  padding: 14px;
+  text-align: left;
+  font-weight: 600;
+  color: #666;
+}
+
+.fees-table th.text-right {
+  text-align: right;
+}
+
+.fees-table td {
+  padding: 12px 14px;
+  border-bottom: 1px solid #e5e7eb;
+  color: #333;
+}
+
+.fees-table tbody tr:hover {
+  background: #f9fafb;
+}
+
+.country-flag {
+  height: 20px;
+  width: 30px;
+  border-radius: 2px;
+  margin-right: 8px;
+  vertical-align: middle;
+  object-fit: cover;
+}
+
+.fees-table .text-right {
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+}
+
+.fees-table .font-bold {
+  font-weight: 600;
+  color: #000;
+}
+
+/* ============================================================================
+   LOADING & EMPTY STATES
+   ============================================================================ */
+
+.fees-skeleton {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  background: white;
+  padding: 20px;
+  border-radius: 8px;
+}
+
+.skeleton-row {
+  height: 40px;
+  background: linear-gradient(90deg, #e5e7eb 0%, #f3f4f6 50%, #e5e7eb 100%);
+  border-radius: 4px;
+  background-size: 200% 100%;
+  animation: loading 1.5s infinite;
+}
+
+@keyframes loading {
+  0% { background-position: 200% 0; }
+  100% { background-position: -200% 0; }
+}
+
+.fees-empty {
+  padding: 40px;
+  background: white;
+  border-radius: 8px;
+  text-align: center;
+  color: #999;
+}
+
+.fees-empty p {
+  margin: 0;
+  font-size: 14px;
+}
+
+/* ============================================================================
+   PAGINATION
+   ============================================================================ */
+
+.fees-pagination {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  gap: 20px;
+  padding: 20px;
+  background: white;
+  border-radius: 0 0 8px 8px;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+  margin-top: -1px;
+  font-size: 13px;
+}
+
+.btn-prev,
+.btn-next {
+  padding: 8px 16px;
+  background: #667eea;
+  color: white;
+  border: none;
+  border-radius: 6px;
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background 0.2s;
+}
+
+.btn-prev:hover:not(:disabled),
+.btn-next:hover:not(:disabled) {
+  background: #5568d3;
+}
+
+.btn-prev:disabled,
+.btn-next:disabled {
+  background: #d1d5db;
+  cursor: not-allowed;
+}
+
+.pagination-info {
+  color: #666;
+  font-weight: 500;
+  white-space: nowrap;
+}
+
+/* ============================================================================
+   RESPONSIVE
+   ============================================================================ */
+
+@media (max-width: 768px) {
+  .fees-page {
+    padding: 12px;
+  }
+
+  .fees-admin-controls {
+    flex-direction: column;
+    gap: 12px;
+    align-items: flex-start;
+  }
+
+  .fees-sync-buttons {
+    width: 100%;
+  }
+
+  .fees-sync-buttons button {
+    flex: 1;
+  }
+
+  .fees-category-tabs {
+    overflow-x: auto;
+  }
+
+  .fees-filters {
+    flex-direction: column;
+  }
+
+  .filter-input {
+    min-width: auto;
+  }
+
+  .progress-stats {
+    grid-template-columns: repeat(auto-fit, minmax(100px, 1fr));
+  }
+
+  .fees-table {
+    font-size: 12px;
+  }
+
+  .fees-table th,
+  .fees-table td {
+    padding: 8px 10px;
+  }
+
+  .fees-pagination {
+    flex-direction: column;
+    gap: 12px;
+  }
+
+  .pagination-info {
+    text-align: center;
+  }
+}

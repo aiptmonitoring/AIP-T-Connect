@@ -1,0 +1,38 @@
+project_id = "aipt-ip-management"
+
+[api]
+enabled = true
+port = 54321
+
+[auth]
+enabled = true
+site_url = "http://localhost:3000"
+additional_redirect_urls = [
+  "http://localhost:3000/verify-otp",
+  "http://localhost:3000/login/verify-otp",
+  "http://localhost:3000/forgot-password/verify-otp",
+  "http://localhost:3000/change-password",
+]
+[functions.login]
+verify_jwt = false
+
+[functions.login-otp]
+verify_jwt = false
+
+[functions.company-registration]
+verify_jwt = false
+
+[functions.fees]
+verify_jwt = false
+
+[functions.fees-api]
+verify_jwt = false
+
+[functions.sync-fees]
+verify_jwt = false
+
+[functions.sync-progress]
+verify_jwt = false
+
+[functions.fee-config-check]
+verify_jwt = false
