@@ -1,4 +1,5 @@
-"use client";
+'use client';
+import TablePagination from '../../src/components/TablePagination';
 import ActionIcon from '../../src/components/ActionIcon';
 
 
@@ -187,6 +188,8 @@ export default function QuotationsPage() {
   const [lookup, setLookup] = useState<Lookup>(emptyLookup);
   const [rows, setRows] = useState<Quotation[]>([]);
   const [page, setPage] = useState(1);
+  const [pageSize,setPageSize]=useState(10);
+  const [ascending,setAscending]=useState(false);
   const [search, setSearch] = useState("");
   const [status, setStatus] = useState("");
   const [total, setTotal] = useState(0);
@@ -237,7 +240,8 @@ export default function QuotationsPage() {
     try {
       const params = new URLSearchParams({
         page: String(page),
-        page_size: "10",
+        page_size: String(pageSize),
+        direction:ascending?"asc":"desc",
       });
       if (search.trim()) params.set("search", search.trim());
       if (status) params.set("status", status);
@@ -266,7 +270,7 @@ export default function QuotationsPage() {
     } finally {
       setLoading(false);
     }
-  }, [api, page, search, status]);
+  }, [api, page, search, status, pageSize, ascending]);
   useEffect(() => {
     void load();
   }, [load]);
@@ -698,7 +702,7 @@ export default function QuotationsPage() {
                   <th>Procedure</th>
                   <th>Total</th>
                   <th>Status</th>
-                  <th>Date</th>
+                  <th><button className="aipt-sort" onClick={()=>{setAscending(!ascending);setPage(1)}}>Date {ascending?"?":"?"}</button></th>
                   <th>Actions</th>
                 </tr>
               </thead>
@@ -804,25 +808,7 @@ export default function QuotationsPage() {
               </tbody>
             </table>
           </div>
-          <footer>
-            <p>
-              Page {page} of {Math.max(1, Math.ceil(total / 10))}
-            </p>
-            <button
-              type="button"
-              disabled={page <= 1}
-              onClick={() => setPage((value: number) => value - 1)}
-            >
-              Prev
-            </button>
-            <button
-              type="button"
-              disabled={!total || page >= Math.ceil(total / 10)}
-              onClick={() => setPage((value: number) => value + 1)}
-            >
-              Next
-            </button>
-          </footer>
+          <TablePagination page={page} pageSize={pageSize} total={total} onPageChange={setPage} onPageSizeChange={setPageSize} loading={loading} />
         </section>
         {modal === "form" && (
           <InvoiceModal

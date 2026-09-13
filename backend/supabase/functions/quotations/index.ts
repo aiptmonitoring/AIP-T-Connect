@@ -200,7 +200,7 @@ Deno.serve(async (request) => {
       const pageSize = Math.min(100, Math.max(1, Number(url.searchParams.get('page_size') ?? 10)));
       const search = (url.searchParams.get('search') ?? '').trim().toLowerCase();
       const status = url.searchParams.get('status');
-      let query = db.from('quotations').select(listSelect).is('deleted_at', null).order('created_at', { ascending: false });
+      let query = db.from('quotations').select(listSelect).is('deleted_at', null).order('created_at', { ascending: url.searchParams.get('direction') === 'asc' }).order('id');
       if (profile.role === 'client') query = query.eq('client_id', profile.client_id).eq('status', 'Approved');
       const { data, error } = await query;
       if (error) throw error;

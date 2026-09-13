@@ -1,4 +1,5 @@
-"use client";
+'use client';
+import TablePagination from '../../src/components/TablePagination';
 import ActionIcon from '../../src/components/ActionIcon';
 
 
@@ -168,8 +169,8 @@ const matterTabs: Array<{ id: MatterTab; label: string }> = [
   { id: "copyright", label: "Copyright" },
   { id: "other", label: "Others" },
 ];
-const CLIENT_PAGE_SIZE = 20;
-const MATTER_PAGE_SIZE = 20;
+
+
 const emptyMatterTabTotals: Record<MatterTab, number> = { trademark: 0, patent: 0, design: 0, copyright: 0, other: 0 };
 const timelineFileExtensions = new Set(["pdf", "png", "jpg", "jpeg", "doc", "docx", "xls", "xlsx"]);
 const TIMELINE_MAX_FILE_SIZE = 10 * 1024 * 1024;
@@ -325,6 +326,8 @@ function MatterImage({ path }: { path: string | null }) {
 }
 
 export default function ClientsPage() {
+  const [CLIENT_PAGE_SIZE,setClientPageSize]=useState(20);
+  const [MATTER_PAGE_SIZE,setMatterPageSize]=useState(20);
   const [clients, setClients] = useState<Client[]>([]);
   const [clientPage, setClientPage] = useState(1);
   const [clientSort, setClientSort] = useState<{ field: string; direction: "asc" | "desc" }>({ field: "assigned_id", direction: "asc" });
@@ -451,7 +454,7 @@ export default function ClientsPage() {
     } finally {
       setLoading(false);
     }
-  }, [clientPage, clientRefreshKey, clientSort, request, search]);
+  }, [clientPage, clientRefreshKey, clientSort, request, search, CLIENT_PAGE_SIZE]);
 
   const sortClients = (field: string) => {
     setClientSort((current) => current.field === field
@@ -478,7 +481,7 @@ export default function ClientsPage() {
     } finally {
       setRelatedLoading(false);
     }
-  }, [request]);
+  }, [request,MATTER_PAGE_SIZE]);
 
   const loadMatterTabTotals = useCallback(async (clientId: string) => {
     try {
@@ -941,7 +944,7 @@ export default function ClientsPage() {
               </tbody>
             </table>
           </div>
-          <footer className="clients-pagination"><p>Showing {clientTotal ? (clientPage - 1) * CLIENT_PAGE_SIZE + 1 : 0}-{Math.min(clientPage * CLIENT_PAGE_SIZE, clientTotal)} of {clientTotal} clients</p><div><button type="button" onClick={() => setClientPage((page) => Math.max(1, page - 1))} disabled={loading || clientPage === 1}>Previous</button><span>Page {clientPage} of {Math.max(1, Math.ceil(clientTotal / CLIENT_PAGE_SIZE))}</span><button type="button" onClick={() => setClientPage((page) => Math.min(Math.max(1, Math.ceil(clientTotal / CLIENT_PAGE_SIZE)), page + 1))} disabled={loading || clientPage >= Math.max(1, Math.ceil(clientTotal / CLIENT_PAGE_SIZE))}>Next</button></div></footer>
+          <TablePagination page={clientPage} pageSize={CLIENT_PAGE_SIZE} total={clientTotal} onPageChange={setClientPage} onPageSizeChange={setClientPageSize} loading={loading} />
         </section>
       </section>
 
@@ -967,6 +970,8 @@ export default function ClientsPage() {
         matters={relatedMatters}
         total={matterTotal}
         page={matterPage}
+        pageSize={MATTER_PAGE_SIZE}
+        onPageSizeChange={setMatterPageSize}
         tabTotals={matterTabTotals}
         activeTab={matterTab}
         search={matterSearch}
@@ -1076,11 +1081,13 @@ function ClientEditor({ mode, client, draft, countries, classifications, pending
   </form></Modal>;
 }
 
-function RelatedDataModal({ client, matters, total, page, tabTotals, activeTab, search, loading, error, onTabChange, onSearchChange, onPageChange, onClose, onAdd, onView, onEdit, onArchive, onTimeline }: {
+function RelatedDataModal({ client, matters, total, page, pageSize, onPageSizeChange, tabTotals, activeTab, search, loading, error, onTabChange, onSearchChange, onPageChange, onClose, onAdd, onView, onEdit, onArchive, onTimeline }: {
   client: Client;
   matters: Matter[];
   total: number;
   page: number;
+  pageSize: number;
+  onPageSizeChange: (size:number)=>void;
   tabTotals: Record<MatterTab, number>;
   activeTab: MatterTab;
   search: string;
@@ -1104,7 +1111,7 @@ function RelatedDataModal({ client, matters, total, page, tabTotals, activeTab, 
     <div className="matter-table"><table><thead><tr><th>Image</th><th>Date</th><th>AIP&T Ref No.</th><th>Client Ref No.</th><th>Procedure</th><th>Project</th><th>Class</th><th>Country</th><th>Filing No. / Date</th><th>Acceptance No. / Date</th><th>Register No. / Date</th><th>Renewal Date</th><th>Applicant</th><th>Actions</th></tr></thead><tbody>
       {loading ? <tr><td colSpan={14} className="matter-state">Loading related applications...</td></tr> : matters.length ? matters.map((matter) => <tr key={matter.id}><td><MatterImage path={matter.image_path} /></td><td>{formatDate(matter.matter_date)}</td><td>{matter.aipt_ref_no}</td><td>{matter.client_ref_no}</td><td>{matter.procedure?.description ?? "-"}</td><td><b>{matter.project_name}</b><small className="matter-service">{matter.service?.service ?? "Other"}</small></td><td>{matter.class_number ?? "-"}</td><td><span className="country-cell"><CountryFlag country={matter.country} compact />{matter.country?.name ?? "-"}</span></td><td>{matter.filing_number ?? "-"}<small>{formatDate(matter.filing_date)}</small></td><td>{matter.acceptance_number ?? "-"}<small>{formatDate(matter.acceptance_date)}</small></td><td>{matter.register_number ?? "-"}<small>{formatDate(matter.registered_date)}</small></td><td>{formatDate(matter.renewal_date)}</td><td>{matter.applicant}</td><td><div className="matter-actions"><button type="button" className="timeline-action" onClick={() => onTimeline(matter)}>Timeline</button><button type="button" onClick={() => onView(matter)} data-action="view" data-icon-only="true" title="View"><ActionIcon name="view" /><span className="aipt-action-label">View</span></button><button type="button" onClick={() => onEdit(matter)} data-action="edit" data-icon-only="true" title="Edit"><ActionIcon name="edit" /><span className="aipt-action-label">Edit</span></button><button type="button" className="danger" onClick={() => onArchive(matter)} data-action="delete" data-icon-only="true" title="Delete"><ActionIcon name="delete" /><span className="aipt-action-label">Delete</span></button></div></td></tr>) : <tr><td colSpan={14} className="matter-state">No {activeTab === "other" ? "other" : activeTab} applications found for this client.</td></tr>}
     </tbody></table></div>
-    <footer className="client-modal-footer"><span>Showing {total ? (page - 1) * MATTER_PAGE_SIZE + 1 : 0}-{Math.min(page * MATTER_PAGE_SIZE, total)} of {total} application{total === 1 ? "" : "s"}</span><div className="modal-footer-actions"><button type="button" className="secondary" onClick={() => onPageChange(Math.max(1, page - 1))} disabled={loading || page === 1}>Previous</button><button type="button" className="secondary" onClick={() => onPageChange(Math.min(Math.max(1, Math.ceil(total / MATTER_PAGE_SIZE)), page + 1))} disabled={loading || page >= Math.max(1, Math.ceil(total / MATTER_PAGE_SIZE))}>Next</button><button type="button" className="secondary" onClick={onClose} data-action="cancel" title="Close"><ActionIcon name="cancel" /><span className="aipt-action-label">Close</span></button></div></footer>
+    <TablePagination page={page} pageSize={pageSize} total={total} onPageChange={onPageChange} onPageSizeChange={onPageSizeChange} loading={loading} />
   </section></Modal>;
 }
 

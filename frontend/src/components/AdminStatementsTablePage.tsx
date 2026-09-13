@@ -9,7 +9,7 @@ type Client = { id: string; company_name: string; email?: string };
 type Statement = { id: string; statement_date: string; client_id: string; description: string; document_name: string | null; document_size: number | null; approval_status: 'pending' | 'approved'; payment_status: 'unpaid' | 'paid'; client?: Client };
 type Tab = 'all' | 'pending' | 'approved';
 const formatDate = (value: string) => new Intl.DateTimeFormat('en-US', { month: 'short', day: 'numeric', year: 'numeric' }).format(new Date(`${value.slice(0, 10)}T00:00:00`));
-const pageSizes = [10, 25, 50];
+const pageSizes = [10, 20, 50, 100];
 
 async function loadAllClients(headers: HeadersInit) {
   const collected: Client[] = [];

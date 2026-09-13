@@ -1,4 +1,5 @@
 'use client';
+import TablePagination from '../../src/components/TablePagination';
 import ActionIcon from '../../src/components/ActionIcon';
 
 
@@ -41,6 +42,14 @@ export default function ProcedurePage() {
   const [color, setColor] = useState<ColorName>('purple');
   const [serviceId, setServiceId] = useState('');
   const [query, setQuery] = useState('');
+  const [page,setPage] = useState(1);
+  const [pageSize,setPageSize] = useState(10);
+  const [total,setTotal] = useState(0);
+  const [sort,setSort] = useState('description');
+  const [ascending,setAscending] = useState(true);
+  const [search,setSearch] = useState('');
+  const generation = useRef(0);
+  useEffect(()=>{const timer=window.setTimeout(()=>{setSearch(query);setPage(1)},300);return ()=>window.clearTimeout(timer)},[query]);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [importing, setImporting] = useState(false);
@@ -70,13 +79,17 @@ export default function ProcedurePage() {
   }, []);
 
   const load = useCallback(async () => {
+    const version = ++generation.current;
     setLoading(true);
     setError('');
     try {
       const [procedureBody, serviceBody] = await Promise.all([
-        request('procedures', '?page=1&perPage=100&sort=description'),
+        request('procedures', '?' + new URLSearchParams({page:String(page),perPage:String(pageSize),search,sort,direction:ascending?'asc':'desc'})),
         request('services', '?page=1&page_size=100&sort=name'),
       ]);
+      if(version !== generation.current) return;
+      setTotal(procedureBody.total ?? 0);
+      if(page > Math.max(1,Math.ceil(procedureBody.total/pageSize))) setPage(Math.max(1,Math.ceil(procedureBody.total/pageSize)));
       setProcedures(procedureBody.data ?? []);
       setServices((serviceBody.data ?? serviceBody ?? []).map((item: Service) => ({
         id: item.id,
@@ -88,17 +101,11 @@ export default function ProcedurePage() {
     } finally {
       setLoading(false);
     }
-  }, [request]);
+  }, [request,page,pageSize,search,sort,ascending]);
 
   useEffect(() => { void load(); }, [load]);
 
-  const visible = useMemo(() => {
-    const term = query.trim().toLowerCase();
-    if (!term) return procedures;
-    return procedures.filter((procedure) =>
-      `${procedure.description} ${procedure.detail_text} ${procedure.service?.service ?? ''}`.toLowerCase().includes(term),
-    );
-  }, [procedures, query]);
+  const visible = procedures;
 
   const open = (kind: Exclude<Modal, null>, item?: Procedure) => {
     setSelected(item ?? null);
@@ -243,13 +250,13 @@ export default function ProcedurePage() {
       {notice && <div className="country-toast">{notice}<button onClick={() => setNotice('')}>×</button></div>}
       <section className="country-table-card">
         {error && !modal && <p className="country-page-error">{error}</p>}
-        <div className="country-table-wrap"><table><thead><tr><th>Description <span>⌃</span></th><th>Color indicator <span>⌃</span></th><th>Service action <span>⌃</span></th></tr></thead><tbody>
+        <div className="country-table-wrap"><table><thead><tr><th><button className="aipt-sort" onClick={()=>{setSort("description");setAscending(!ascending);setPage(1)}}>Description {sort==="description"?(ascending?"?":"?"):"?"}</button></th><th><button className="aipt-sort" onClick={()=>{setSort("color_indication");setAscending(!ascending);setPage(1)}}>Color indicator {sort==="color_indication"?(ascending?"?":"?"):"?"}</button></th><th>Service action <span>⌃</span></th></tr></thead><tbody>
           {loading ? <tr><td colSpan={3} className="country-state">Loading procedures…</td></tr> : visible.length ? visible.map((procedure) => {
             const hex = colorHex(procedure.color_indication);
             return <tr key={procedure.id}><td><i className="procedure-dot" style={{ background: hex }}/><b>{procedure.description}</b>{procedure.detail_text !== procedure.description && <small className="procedure-detail">{procedure.detail_text}</small>}</td><td><span className="procedure-pill" style={{ color: hex, background: `${hex}16` }}><i style={{ background: hex }}/>{procedure.color_indication}</span></td><td><button className="country-icon" aria-label={`View ${procedure.description}`}>⊙</button><button className="country-icon" aria-label={`Edit ${procedure.description}`} onClick={() => open('edit', procedure)} data-action="edit" data-icon-only="true" title="Edit"><ActionIcon name="edit" /><span className="aipt-action-label">Edit</span></button><button className="country-icon delete" aria-label={`Delete ${procedure.description}`} onClick={() => open('delete', procedure)} data-action="delete" data-icon-only="true" title="Delete"><ActionIcon name="delete" /><span className="aipt-action-label">Delete</span></button></td></tr>;
           }) : <tr><td colSpan={3} className="country-state">No procedures found.</td></tr>}
         </tbody></table></div>
-        <footer><p>Showing {visible.length ? 1 : 0} to {visible.length} of {visible.length} results</p><span className="per-page">Per page <b>100⌄</b></span><div><button>‹</button><button className="current">1</button><button>›</button></div></footer>
+        <TablePagination page={page} pageSize={pageSize} total={total} onPageChange={setPage} onPageSizeChange={setPageSize} loading={loading} />
       </section>
     </section>
     {modal && <div className="country-modal-backdrop" onMouseDown={close}><section className="country-modal" onMouseDown={(event) => event.stopPropagation()}>

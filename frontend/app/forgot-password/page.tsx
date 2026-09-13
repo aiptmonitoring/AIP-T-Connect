@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { FormEvent, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
-import { DashboardPreview } from "../../src/components/DashboardPreview";
+import { AuthArtwork } from "../../src/components/AuthArtwork";
 import { getSupabaseBrowserClient } from "../../src/lib/supabase/browser";
 
 const validEmail = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
@@ -24,5 +24,5 @@ export default function ForgotPasswordPage() {
     } catch { setError("Unable to send a verification code right now. Please try again."); }
     finally { pending.current = false; setBusy(false); }
   };
-  return <main className="auth-page"><section className="auth-card"><div className="login-panel"><div className="brand"><strong>AIP&amp;T</strong><span>INTELLECTUAL PROPERTY</span></div><form className="login-form simple-auth" onSubmit={submit}><header><h1>Forgot Password</h1><p>Enter your email and we will send a six-digit verification code.</p></header><label htmlFor="email">Email Address <em>*</em></label><div className="field"><span className="field-icon">✉</span><input id="email" value={email} onChange={(event) => setEmail(event.target.value)} placeholder="Enter your email" type="email" autoComplete="email" /></div>{error && <p className="trouble">{error}</p>}<button className="primary-button" type="submit" disabled={busy}>{busy ? "Sending code..." : "Send verification code"}</button><p className="access"><Link href="/login">Back to Login</Link></p></form><footer>© 2026 AIP&amp;T. All rights reserved.</footer></div><DashboardPreview /></section></main>;
+  return <main className="auth-page"><section className="auth-card"><div className="login-panel"><div className="brand"><strong>AIP&amp;T</strong><span>INTELLECTUAL PROPERTY</span></div><form className="login-form simple-auth" onSubmit={submit}><header><h1>Forgot Password</h1><p>Enter your email and we will send a six-digit verification code.</p></header><label htmlFor="email">Email Address <em>*</em></label><div className="field"><span className="field-icon">✉</span><input id="email" value={email} onChange={(event) => setEmail(event.target.value)} placeholder="Enter your email" type="email" autoComplete="email" /></div>{error && <p className="trouble">{error}</p>}<button className="primary-button" type="submit" disabled={busy}>{busy ? "Sending code..." : "Send verification code"}</button><p className="access"><Link href="/login">Back to Login</Link></p></form><footer>© 2026 AIP&amp;T. All rights reserved.</footer></div><AuthArtwork /></section></main>;
 }

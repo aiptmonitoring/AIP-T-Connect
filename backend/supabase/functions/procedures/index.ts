@@ -42,8 +42,8 @@ Deno.serve(async (request) => {
       const page = Math.max(Number(url.searchParams.get('page') ?? 1), 1);
       const perPage = Math.min(Math.max(Number(url.searchParams.get('perPage') ?? 10), 1), 100);
       const search = url.searchParams.get('search')?.trim() ?? '';
-      const sort = url.searchParams.get('sort') === 'description' ? 'description' : 'created_at';
-      let query = db.from('procedures').select(select, { count: 'exact' }).is('deleted_at', null).order(sort, { ascending: sort === 'description' });
+      const sort = ['description', 'color_indication', 'created_at'].includes(url.searchParams.get('sort') || '') ? url.searchParams.get('sort')! : 'created_at';
+      let query = db.from('procedures').select(select, { count: 'exact' }).is('deleted_at', null).order(sort, { ascending: url.searchParams.has('direction') ? url.searchParams.get('direction') === 'asc' : sort === 'description' }).order('id');
       if (search) query = query.or(`description.ilike.%${search}%,detail_text.ilike.%${search}%`);
       if (colors.has(url.searchParams.get('color') ?? '')) query = query.eq('color_indication', url.searchParams.get('color'));
       if (url.searchParams.get('service_id')) query = query.eq('service_id', url.searchParams.get('service_id'));

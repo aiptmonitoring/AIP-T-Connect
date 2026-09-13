@@ -2,7 +2,7 @@
 
 import { useEffect, useRef, useState } from 'react';
 import { useRouter } from 'next/navigation';
-import { DashboardPreview } from './DashboardPreview';
+import { AuthArtwork } from './AuthArtwork';
 import { beginOtpRequest } from '../lib/otp-request-log';
 import { getRoleDestination } from '../lib/auth/role-routing';
 import { fetchSupabaseFunction, getSupabaseBrowserClient } from '../lib/supabase/browser';
@@ -266,7 +266,7 @@ export function OtpVerification({ context }: { context: Context }) {
           <footer>© 2026 AIP&amp;T. All rights reserved.</footer>
         </div>
 
-        <DashboardPreview />
+        <AuthArtwork />
       </section>
     </main>
   );

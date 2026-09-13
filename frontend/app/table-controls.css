@@ -1,0 +1,17 @@
+
+.aipt-pagination{display:flex!important;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:12px;padding:16px 20px;border-top:1px solid #e2e8ee;color:#526178;font-size:13px}
+.aipt-pagination label,.aipt-pagination nav{display:flex;align-items:center;gap:8px}
+.aipt-pagination button,.aipt-pagination select{min-height:36px;border:1px solid #d6e1e8;border-radius:6px;background:#fff;color:#244c59;padding:6px 10px;font:inherit}
+.aipt-pagination button:disabled{opacity:.45;cursor:not-allowed}
+.aipt-pagination button:not(:disabled):hover{background:#e7f7fa;border-color:#26a9c5}
+.aipt-sort{border:0;background:none;color:inherit;font:inherit;font-weight:700;cursor:pointer;text-align:left}
+.countries-page td.country-flag{display:table-cell;width:auto;height:auto;border:0;border-radius:0;overflow:visible;background:transparent;padding:14px 18px}
+.countries-page .country-flag img{width:32px;height:22px;object-fit:contain}
+.countries-page .flag-preview img{object-fit:contain}
+.project-filters{flex-wrap:wrap!important;gap:4px!important;padding:10px 16px!important}
+.project-filters button{border:1px solid transparent!important;border-radius:7px!important;min-height:40px!important;padding:8px 12px!important}
+.project-filters button.is-active{border-color:#79c9d9!important;background:#e7f7fa!important}
+.clients-table-card>header{flex-wrap:wrap;gap:12px}
+.clients-table-card>header>select{min-height:40px;border:1px solid #d6e1e8;border-radius:7px;padding:8px 12px;background:#fff;color:#244c59}
+.project-export-actions{display:flex;flex-wrap:wrap;gap:8px}
+@media(max-width:640px){.aipt-pagination{align-items:flex-start}.aipt-pagination nav{flex-wrap:wrap}}

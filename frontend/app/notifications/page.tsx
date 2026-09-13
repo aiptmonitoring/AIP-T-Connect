@@ -1,4 +1,5 @@
-"use client";
+'use client';
+import TablePagination from '../../src/components/TablePagination';
 import ActionIcon from '../../src/components/ActionIcon';
 
 import {
@@ -29,7 +30,7 @@ type Notification = {
   countries: Array<{ country: Country }>;
 };
 type Modal = "add" | "view" | "edit" | "delete" | null;
-const pageSize = 10;
+
 const toDateTimeLocal = (value: Date | string = new Date()) => {
   const date = new Date(value);
   const offset = date.getTimezoneOffset() * 60_000;
@@ -48,6 +49,7 @@ function CountryFlag({ country }: { country: Country }) {
 }
 
 export default function NotificationsPage() {
+  const [pageSize, setPageSize] = useState(10);
   const [items, setItems] = useState<Notification[]>([]),
     [countries, setCountries] = useState<Country[]>([]),
     [selected, setSelected] = useState<Notification | null>(null),
@@ -533,41 +535,7 @@ export default function NotificationsPage() {
               </tbody>
             </table>
           </div>
-          <footer>
-            <p>
-              Showing {filtered.length ? (current - 1) * pageSize + 1 : 0} to{" "}
-              {Math.min(current * pageSize, filtered.length)} of{" "}
-              {filtered.length} results
-            </p>
-            <span className="per-page">
-              Per page <b>10</b>
-            </span>
-            <div>
-              <button
-                disabled={current === 1}
-                onClick={() => setPage(current - 1)}
-              >
-                ‹
-              </button>
-              {Array.from({ length: pages }, (_, index) => index + 1).map(
-                (value) => (
-                  <button
-                    key={value}
-                    className={value === current ? "current" : ""}
-                    onClick={() => setPage(value)}
-                  >
-                    {value}
-                  </button>
-                ),
-              )}
-              <button
-                disabled={current === pages}
-                onClick={() => setPage(current + 1)}
-              >
-                ›
-              </button>
-            </div>
-          </footer>
+          <TablePagination page={current} pageSize={pageSize} total={filtered.length} onPageChange={setPage} onPageSizeChange={setPageSize} loading={loading} />
         </section>
       </section>
       {modal && (

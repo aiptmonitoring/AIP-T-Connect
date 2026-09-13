@@ -1,4 +1,5 @@
 'use client';
+import TablePagination from '../../../src/components/TablePagination';
 import ActionIcon from '../../../src/components/ActionIcon';
 
 
@@ -15,7 +16,7 @@ type Project = {
 type TimelineDocument = { id: string; document_name: string; document_size: number; document_type: string; created_at: string };
 type TimelineEntry = { id: string; timeline_date: string; description: string; procedure?: { description: string; color_indication?: string } | null; documents: TimelineDocument[] };
 type ProjectResponse = { data: Project[]; total: number; page: number; page_size: number };
-const pageSize = 10;
+
 const date = (value: string | null) => value ? new Intl.DateTimeFormat('en-US', { month: 'short', day: 'numeric', year: 'numeric' }).format(new Date(`${value}T00:00:00`)) : 'Not set';
 const statusClass = (value: string) => value.toLowerCase().replace(/[^a-z0-9]+/g, '-');
 const colorClass = (value?: string) => ['purple','blue','green','orange','red','teal','yellow','gray','pink','indigo'].includes(value ?? '') ? value : 'purple';
@@ -43,6 +44,7 @@ function ProjectImage({ path, name }: { path: string | null; name: string }) {
 }
 
 export default function ClientProjectsPage() {
+  const [pageSize,setPageSize]=useState(10);
   const [projects, setProjects] = useState<Project[]>([]);
   const [search, setSearch] = useState('');
   const [debouncedSearch, setDebouncedSearch] = useState('');
@@ -68,7 +70,7 @@ export default function ClientProjectsPage() {
       setProjects(body.data); setTotal(body.total);
     } catch (cause) { setError(cause instanceof Error ? cause.message : 'Unable to load projects.'); }
     finally { setLoading(false); }
-  }, [page, debouncedSearch, type]);
+  }, [page, pageSize, debouncedSearch, type]);
   useEffect(() => { void loadProjects(); }, [loadProjects]);
   useEffect(() => {
     const supabase = getSupabaseBrowserClient();
@@ -105,7 +107,7 @@ export default function ClientProjectsPage() {
           {timelineProject === project.id && <tr className='timeline-detail-row'><td colSpan={7}><div className='professional-timeline'><header><div><h3>Application timeline</h3><p>{project.project_name} · {project.aipt_ref_no}</p></div><span>{timelineEntries.length} milestones</span></header>{loadingTimeline ? <p className='timeline-state'>Loading timeline...</p> : timelineError ? <p className='timeline-state error'>{timelineError}</p> : timelineEntries.length ? <div className='timeline-track'>{timelineEntries.map((entry, index) => <article className={`timeline-milestone ${colorClass(entry.procedure?.color_indication)}`} key={entry.id}><div className='timeline-marker'><span>{index + 1}</span></div><div className='timeline-content'><header><div><strong>{entry.procedure?.description || 'Procedure update'}</strong><time>{date(entry.timeline_date)}</time></div><span className={`timeline-color-label ${colorClass(entry.procedure?.color_indication)}`}>{entry.procedure?.color_indication || 'Milestone'}</span></header><p>{entry.description}</p>{entry.documents.length > 0 && <div className='timeline-documents'>{entry.documents.map((document) => <button type='button' key={document.id} onClick={() => void downloadDocument(entry, document)} disabled={documentId === document.id}><span>↓</span><b>{documentId === document.id ? 'Opening...' : document.document_name}</b><small>{Math.ceil(document.document_size / 1024)} KB</small></button>)}</div>}</div></article>)}</div> : <p className='timeline-state'>No timeline entries have been published for this project.</p>}</div></td></tr>}
         </Fragment>) : <tr><td colSpan={7} className='client-project-state'>No projects match your search and filters.</td></tr>}
       </tbody></table></div>
-      <footer className='client-project-pagination'><p>Showing <b>{firstResult}</b> to <b>{lastResult}</b> of <b>{total}</b> projects</p><nav aria-label='Project pagination'><button type='button' onClick={() => setPage((value) => Math.max(1, value - 1))} disabled={page === 1}>Previous</button>{Array.from({ length: pageCount }, (_, index) => index + 1).filter((value) => value === 1 || value === pageCount || Math.abs(value - page) <= 1).map((value, index, values) => <Fragment key={value}>{index > 0 && value - values[index - 1] > 1 && <span>…</span>}<button type='button' className={value === page ? 'active' : ''} aria-current={value === page ? 'page' : undefined} onClick={() => setPage(value)}>{value}</button></Fragment>)}<button type='button' onClick={() => setPage((value) => Math.min(pageCount, value + 1))} disabled={page >= pageCount}>Next</button></nav></footer>
+      <TablePagination page={page} pageSize={pageSize} total={total} onPageChange={setPage} onPageSizeChange={setPageSize} />
     </section>
   </section>;
 }

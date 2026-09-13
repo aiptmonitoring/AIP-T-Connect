@@ -90,16 +90,31 @@ Deno.serve(async (request: Request) => {
       const getHistory = url.searchParams.get('history') === 'true';
 
       if (getHistory) {
-        // Return recent sync history
-        const { data: history, error } = await db
+        const page = Math.max(1, Math.floor(Number(url.searchParams.get('page')) || 1));
+        const size = Math.min(100, Math.max(1, Math.floor(Number(url.searchParams.get('page_size')) || 10)));
+        const tabRows = url.searchParams.get('rows') === 'true';
+        const tabs = ['Trademark', 'Patent', 'Design', 'Copyright', 'Others', 'Classes'];
+        const offset = (page - 1) * size;
+        const first = tabRows ? Math.floor(offset / tabs.length) : offset;
+        const last = tabRows ? Math.floor((offset + size - 1) / tabs.length) : offset + size - 1;
+        const { data: history, error, count } = await db
           .from('fee_sync_runs')
-          .select('id, status, started_at, completed_at, processed_rows, total_rows, error_count, inserted_count, updated_count, dataset_version_id, sheet_progress')
-          .order('started_at', { ascending: false })
-          .limit(10);
-
+          .select('id, status, started_at, completed_at, processed_rows, total_rows, error_count, inserted_count, updated_count, dataset_version_id, sheet_progress', { count: 'exact' })
+          .order('started_at', { ascending: url.searchParams.get('direction') === 'asc' })
+          .order('id')
+          .range(first, last);
         if (error) throw error;
-
-        return new Response(JSON.stringify({ history }), { status: 200, headers: cors });
+        if (tabRows) {
+          const rows = (history ?? []).flatMap(run => tabs.map(tab => ({
+            id: run.id + '-' + tab,
+            date: run.completed_at || run.started_at,
+            tab,
+            complete: run.status === 'completed' && run.sheet_progress?.[tab] === 'complete',
+            status: run.status,
+          }))).slice(offset % tabs.length, offset % tabs.length + size);
+          return new Response(JSON.stringify({ rows, total: (count ?? 0) * tabs.length, page, page_size: size }), { status: 200, headers: cors });
+        }
+        return new Response(JSON.stringify({ history, total: count ?? 0, page, page_size: size }), { status: 200, headers: cors });
       }
 
       if (!syncRunId) {

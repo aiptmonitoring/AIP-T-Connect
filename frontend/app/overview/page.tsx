@@ -1,4 +1,5 @@
 'use client';
+import TablePagination from '../../src/components/TablePagination';
 import ActionIcon from '../../src/components/ActionIcon';
 
 
@@ -160,6 +161,13 @@ export default function Overview() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   const [feeSyncRows, setFeeSyncRows] = useState<FeeSyncTabRow[]>([]);
+  const [syncPage,setSyncPage]=useState(1);
+  const [syncSize,setSyncSize]=useState(10);
+  const [syncTotal,setSyncTotal]=useState(0);
+  const [syncDirection,setSyncDirection]=useState('desc');
+  const [syncError,setSyncError]=useState('');
+  const syncBusy=useRef(false);
+  const [recentSize,setRecentSize]=useState(10);
   const deferredSearch = useDeferredValue(search);
   const requestCounter = useRef(0);
 
@@ -172,7 +180,7 @@ export default function Overview() {
         day,
         months: String(months),
         recent_page: String(page),
-        recent_page_size: '10',
+        recent_page_size: String(recentSize),
       });
       if (deferredSearch.trim()) query.set('recent_search', deferredSearch.trim());
       const nextSummary = await getSummary(query);
@@ -182,31 +190,27 @@ export default function Overview() {
     } finally {
       if (requestId === requestCounter.current) setLoading(false);
     }
-  }, [day, deferredSearch, months, page]);
+  }, [day, deferredSearch, months, page, recentSize]);
 
-  useEffect(() => { void loadSummary(); }, [loadSummary]);
+  useEffect(() => { void loadSummary(); }, [loadSummary, recentSize]);
 
   const loadFeeSyncHistory = useCallback(async () => {
-    const supabase = getSupabaseBrowserClient();
-    if (!supabase) return;
-    const session = (await supabase.auth.getSession()).data.session;
-    if (!session) return;
-    const response = await fetchSupabaseFunction('sync-progress?history=true', { headers: { Authorization: `Bearer ${session.access_token}` } });
-    if (!response.ok) return;
-    const body = await response.json() as { history?: FeeSyncHistory[] };
-    const tabs = ['Trademark', 'Patent', 'Design', 'Copyright', 'Others', 'Classes'];
-    setFeeSyncRows((body.history ?? []).flatMap((run) => tabs.map((tab) => ({
-      id: `${run.id}-${tab}`,
-      date: run.completed_at || run.started_at,
-      tab,
-      complete: run.status === 'completed' && (run.sheet_progress?.[tab] === undefined || run.sheet_progress?.[tab] === 'complete'),
-      status: run.status,
-    }))));
-  }, []);
+    if(syncBusy.current) return;
+    syncBusy.current=true;
+    try {
+      const response=await fetchSupabaseFunction('sync-progress?' + new URLSearchParams({history:'true',rows:'true',page:String(syncPage),page_size:String(syncSize),direction:syncDirection}));
+      const body=await response.json();
+      if(!response.ok) throw Error(body.error || 'Unable to load synchronization history.');
+      setFeeSyncRows(body.rows ?? []);
+      setSyncTotal(body.total ?? 0);
+      setSyncError('');
+    } catch(cause) {setSyncError(cause instanceof Error ? cause.message : 'Unable to load synchronization history.');}
+    finally {syncBusy.current=false;}
+  }, [syncPage,syncSize,syncDirection]);
 
   useEffect(() => { void loadFeeSyncHistory(); }, [loadFeeSyncHistory]);
   useEffect(() => {
-    const timer = window.setInterval(() => void loadFeeSyncHistory(), 10000);
+    const timer = window.setInterval(() => { if (!document.hidden) void loadFeeSyncHistory(); }, 10000);
     return () => window.clearInterval(timer);
   }, [loadFeeSyncHistory]);
 
@@ -286,7 +290,7 @@ export default function Overview() {
 
     <section className="overview-panel overview-sync-history">
       <header className="overview-panel-header"><div><h2>Fee Sync Updates</h2><p>Each tab reflects the latest server-side fee synchronization result.</p></div><button type="button" className="overview-button overview-button-secondary" onClick={() => void loadFeeSyncHistory()} data-action="refresh" title="Refresh"><ActionIcon name="refresh" /><span className="aipt-action-label">Refresh</span></button></header>
-      <div className="overview-table-scroll"><table className="overview-table overview-sync-table"><thead><tr><th>Date</th><th>Tab</th><th>Complete</th></tr></thead><tbody>{feeSyncRows.length ? feeSyncRows.map((row) => <tr key={row.id}><td>{formatDate(row.date)}</td><td><b>{row.tab}</b></td><td><span className={`overview-sync-status ${row.complete ? 'is-complete' : 'is-incomplete'}`}>{row.complete ? 'Complete' : row.status}</span></td></tr>) : <tr><td colSpan={3} className="overview-table-state">No fee synchronization history available.</td></tr>}</tbody></table></div>
+      <div className="overview-table-scroll"><table className="overview-table overview-sync-table"><thead><tr><th><button className="aipt-sort" onClick={()=>{setSyncDirection(syncDirection==="asc"?"desc":"asc");setSyncPage(1)}}>Date {syncDirection==="asc"?"?":"?"}</button></th><th>Tab</th><th>Complete</th></tr></thead><tbody>{feeSyncRows.length ? feeSyncRows.map((row) => <tr key={row.id}><td>{formatDate(row.date)}</td><td><b>{row.tab}</b></td><td><span className={`overview-sync-status ${row.complete ? 'is-complete' : 'is-incomplete'}`}>{row.complete ? 'Complete' : row.status}</span></td></tr>) : <tr><td colSpan={3} className="overview-table-state">No fee synchronization history available.</td></tr>}</tbody></table></div>{syncError && <p role="alert">{syncError}</p>}<TablePagination page={syncPage} pageSize={syncSize} total={syncTotal} onPageChange={setSyncPage} onPageSizeChange={setSyncSize} />
     </section>
 
     <section className="overview-panel overview-recent-projects">
@@ -304,7 +308,7 @@ export default function Overview() {
           <td>{formatDate(project.filing_date)}</td>
           <td><span className="overview-activity">{project.latest_timeline ? <><b>{project.latest_timeline.procedure}</b><small>{formatDate(project.latest_timeline.timeline_date)}</small></> : <span>No timeline entry</span>}</span></td>
         </tr>)}</tbody></table></div>
-      <footer className="overview-table-footer"><span>{recent ? `Showing ${recent.total ? (recent.page - 1) * recent.page_size + 1 : 0}–${Math.min(recent.page * recent.page_size, recent.total)} of ${formatNumber(recent.total)} applications` : 'Loading applications…'}</span><div><button type="button" onClick={() => setPage(Math.max(1, page - 1))} disabled={loading || page <= 1}>Previous</button><span>Page {recent?.page ?? page} of {totalPages}</span><button type="button" onClick={() => setPage(Math.min(totalPages, page + 1))} disabled={loading || page >= totalPages}>Next</button></div></footer>
+      <TablePagination page={page} pageSize={recentSize} total={recent?.total ?? 0} onPageChange={setPage} onPageSizeChange={setRecentSize} loading={loading} />
     </section>
   </main>;
 }

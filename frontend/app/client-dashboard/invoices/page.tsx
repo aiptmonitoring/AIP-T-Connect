@@ -1,4 +1,5 @@
 'use client';
+import TablePagination from '../../../src/components/TablePagination';
 import ActionIcon from '../../../src/components/ActionIcon';
 
 
@@ -24,19 +25,20 @@ const money = (value: number) => new Intl.NumberFormat('en-US', { minimumFractio
 export default function ClientInvoicesPage() {
   const [items, setItems] = useState<Invoice[]>([]);
   const [loading, setLoading] = useState(true);
+  const [page,setPage]=useState(1),[pageSize,setPageSize]=useState(10),[total,setTotal]=useState(0),[ascending,setAscending]=useState(false);
   const [error, setError] = useState('');
   const load = useCallback(async () => {
     setLoading(true);
-    try { const body = await request<{ data: Invoice[] }>('quotations?status=Approved&page=1&page_size=100'); setItems(body.data ?? []); setError(''); }
+    try { const body = await request<{ data: Invoice[]; total: number }>('quotations?' + new URLSearchParams({status:'Approved',page:String(page),page_size:String(pageSize),direction:ascending?'asc':'desc'})); setItems(body.data ?? []); setTotal(body.total ?? 0); setError(''); }
     catch (cause) { setError(cause instanceof Error ? cause.message : 'Unable to load invoices.'); }
     finally { setLoading(false); }
-  }, []);
+  }, [page,pageSize,ascending]);
   useEffect(() => { void load(); }, [load]);
   return <section className="client-page client-invoices-page">
     <div className="client-heading"><div><p className="client-kicker">BILLING</p><h1>Invoices</h1><p>Approved invoices shared with your account.</p></div><button className="client-secondary" type="button" onClick={() => void load()} disabled={loading} data-action="refresh" title="Refresh"><ActionIcon name="refresh" /><span className="aipt-action-label">Refresh</span></button></div>
     {error && <p className="client-error">{error}</p>}
-    <section className="client-panel"><div className="panel-title"><h2>My invoices</h2><span>{items.length} approved</span></div><div className="client-table-wrap"><table className="client-table"><thead><tr><th>Invoice</th><th>Date</th><th>Matter</th><th>Subject</th><th>Amount due</th><th>Document</th></tr></thead><tbody>
+    <section className="client-panel"><div className="panel-title"><h2>My invoices</h2><span>{total} approved</span></div><div className="client-table-wrap"><table className="client-table"><thead><tr><th>Invoice</th><th><button className="aipt-sort" onClick={()=>{setAscending(!ascending);setPage(1)}}>Date {ascending?"?":"?"}</button></th><th>Matter</th><th>Subject</th><th>Amount due</th><th>Document</th></tr></thead><tbody>
       {loading ? <tr><td colSpan={6} className="client-empty">Loading invoices...</td></tr> : items.length ? items.map((item) => <tr key={item.id}><td><strong>{item.reference_no}</strong></td><td>{dateText(item.invoice_date)}</td><td>{item.client_matter_ref || '-'}</td><td>{item.subject || '-'}</td><td><strong>{item.currency} {money(item.grand_total)}</strong></td><td><a className="client-secondary invoice-download-link" href={`/invoice/${item.id}`} target="_blank" rel="noreferrer" data-action="pdf" data-icon-only="true" title="PDF"><ActionIcon name="pdf" /><span className="aipt-action-label">PDF</span></a></td></tr>) : <tr><td colSpan={6} className="client-empty">No approved invoices are available.</td></tr>}
-    </tbody></table></div></section>
+    </tbody></table></div><TablePagination page={page} pageSize={pageSize} total={total} onPageChange={setPage} onPageSizeChange={setPageSize} loading={loading} /></section>
   </section>;
 }

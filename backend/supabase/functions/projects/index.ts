@@ -210,7 +210,7 @@ Deno.serve(async (request) => {
   const segments = url.pathname.split('/').filter(Boolean);
   const last = segments.at(-1);
   const isRestore = last === 'restore';
-  const id = isRestore ? segments.at(-2) ?? null : (last === 'projects' ? null : last);
+  const id = (isRestore || last === 'approve') ? segments.at(-2) ?? null : (last === 'projects' ? null : last);
   const fieldId = segments.at(-2) === 'fields' ? last : null;
   try {
     if (profile.role !== 'administrator' && request.method !== 'GET') return json({ error: 'Only administrators can change projects.' }, 403);
@@ -278,9 +278,12 @@ Deno.serve(async (request) => {
       if (matterType && !matterTypes.has(matterType)) return json({ error: 'Choose a valid application type.' }, 400);
       if (approvalStatus && !['draft', 'pending', 'approved', 'rejected'].includes(approvalStatus)) return json({ error: 'Choose a valid approval status.' }, 400);
       const restore = url.searchParams.get('restore') === 'true';
-      let query = db.from('projects').select(projectSelect, { count: 'exact' }).order('matter_date', { ascending: false });
+      const sortable = ['matter_date', 'aipt_ref_no', 'client_ref_no', 'project_name', 'filing_number', 'register_number', 'applicant', 'status', 'approval_status', 'deadline_date', 'renewal_date', 'filing_date', 'registered_date'];
+      const sort = url.searchParams.get('sort') || 'matter_date';
+      if (!sortable.includes(sort)) return json({ error: 'Invalid sort field.' }, 400);
+      let query = db.from('projects').select(projectSelect, { count: 'exact' }).order(sort, { ascending: url.searchParams.get('direction') === 'asc', nullsFirst: false }).order('id');
       query = restore ? query.not('deleted_at', 'is', null) : query.is('deleted_at', null);
-      if (profile.role === 'client') query = query.eq('client_id', clientId);
+      if (profile.role === 'client') query = query.eq('client_id', clientId).eq('approval_status', 'approved');
       else if (requestedClientId) query = query.eq('client_id', requestedClientId);
       if (serviceId) query = query.eq('service_id', serviceId);
       if (profile.role === 'administrator' && approvalStatus) query = query.eq('approval_status', approvalStatus);
@@ -290,7 +293,7 @@ Deno.serve(async (request) => {
       if (error) throw error;
       return json({ data: data ?? [], total: count ?? 0, page, page_size: pageSize });
     }
-    if (request.method === 'POST') {
+    if (request.method === 'POST' && !id) {
       const payload = validate(await request.json());
       await ensureReferences(db, payload);
       const { procedure_ids: _procedureIds, custom_fields: customFieldValues, ...projectPayload } = payload;

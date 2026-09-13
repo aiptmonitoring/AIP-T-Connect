@@ -1,4 +1,5 @@
 'use client';
+import TablePagination from '../../src/components/TablePagination';
 import ActionIcon from '../../src/components/ActionIcon';
 
 
@@ -12,6 +13,7 @@ type VatRate = { id: string; country_id: string; vat: number; country?: Country 
 type Modal = 'add' | 'edit' | 'delete' | null;
 
 export default function VatPage() {
+  const [page,setPage]=useState(1),[pageSize,setPageSize]=useState(10),[ascending,setAscending]=useState(true);
   const [rows, setRows] = useState<VatRate[]>([]);
   const [countries, setCountries] = useState<Country[]>([]);
   const [selected, setSelected] = useState<VatRate | null>(null);
@@ -56,10 +58,12 @@ export default function VatPage() {
 
   useEffect(() => { void load(); }, [load]);
 
-  const visible = useMemo(() => {
+  const filtered = useMemo(() => {
     const term = query.trim().toLowerCase();
-    return rows.filter((row) => !term || row.country?.name.toLowerCase().includes(term));
-  }, [query, rows]);
+    return rows.filter((row) => !term || row.country?.name.toLowerCase().includes(term)).sort((a,b)=>(a.country?.name??'').localeCompare(b.country?.name??'')*(ascending?1:-1));
+  }, [query, rows, ascending]);
+  const currentPage=Math.min(page,Math.max(1,Math.ceil(filtered.length/pageSize)));
+  const visible=filtered.slice((currentPage-1)*pageSize,currentPage*pageSize);
   const assignedCountryIds = new Set(rows.filter((row) => row.id !== selected?.id).map((row) => row.country_id));
 
   const openAdd = () => { setSelected(null); setCountryId(''); setVat(''); setError(''); setModal('add'); };
@@ -106,9 +110,9 @@ export default function VatPage() {
       {notice && <div className="country-toast">{notice}<button type="button" onClick={() => setNotice('')}>×</button></div>}
       {error && !modal && <p className="country-page-error">{error}</p>}
       <section className="country-table-card"><header><h2>VAT Table Data</h2><label className="country-search">⌕<input value={query} onChange={(event) => setQuery(event.target.value)} placeholder="Search countries..." /></label></header>
-        <div className="country-table-wrap"><table><thead><tr><th>Country</th><th>VAT</th><th>Actions</th></tr></thead><tbody>
+        <div className="country-table-wrap"><table><thead><tr><th><button className="aipt-sort" onClick={()=>{setAscending(!ascending);setPage(1)}}>Country {ascending?"?":"?"}</button></th><th>VAT</th><th>Actions</th></tr></thead><tbody>
           {loading ? <tr><td colSpan={3} className="country-state">Loading VAT data...</td></tr> : visible.length ? visible.map((row) => <tr key={row.id}><td><b>{row.country?.name ?? 'Unknown'}</b></td><td>{Number(row.vat).toFixed(2)}%</td><td className="country-actions"><button type="button" onClick={() => openEdit(row)} data-action="edit" data-icon-only="true" title="Edit"><ActionIcon name="edit" /><span className="aipt-action-label">Edit</span></button><button type="button" onClick={() => { setSelected(row); setError(''); setModal('delete'); }} data-action="delete" data-icon-only="true" title="Delete"><ActionIcon name="delete" /><span className="aipt-action-label">Delete</span></button></td></tr>) : <tr><td colSpan={3} className="country-state">No VAT rates configured.</td></tr>}
-        </tbody></table></div>
+        </tbody></table></div><TablePagination page={currentPage} pageSize={pageSize} total={filtered.length} onPageChange={setPage} onPageSizeChange={setPageSize} loading={loading} />
       </section>
       {modal === 'add' || modal === 'edit' ? <div className="country-modal-backdrop"><section className="country-modal"><header><h2>{modal === 'edit' ? 'Edit VAT' : 'Add VAT'}</h2><button type="button" onClick={close}>×</button></header><form onSubmit={save}><label className="country-label">Country <em>*</em><select value={countryId} onChange={(event) => setCountryId(event.target.value)} disabled={modal === 'edit'} required><option value="">Select country</option>{countries.filter((country) => !assignedCountryIds.has(country.id)).map((country) => <option key={country.id} value={country.id}>{country.name}</option>)}</select></label><label className="country-label">VAT <em>*</em><input type="number" min="0" max="100" step="0.01" value={vat} onChange={(event) => setVat(event.target.value)} placeholder="e.g. 15" required /></label>{error && <p className="country-page-error">{error}</p>}<footer><button type="button" onClick={close} data-action="cancel" title="Cancel"><ActionIcon name="cancel" /><span className="aipt-action-label">Cancel</span></button><button className="primary" type="submit" disabled={submitting} data-action="update" title="Save VAT"><ActionIcon name="update" /><span className="aipt-action-label">{submitting ? 'Saving...' : 'Save VAT'}</span></button></footer></form></section></div> : null}
       {modal === 'delete' && <div className="country-modal-backdrop"><section className="country-modal"><header><h2>Delete VAT</h2><button type="button" onClick={close}>×</button></header><p>Delete the VAT rate for {selected?.country?.name ?? 'this country'}?</p><footer><button type="button" onClick={close} data-action="cancel" title="Cancel"><ActionIcon name="cancel" /><span className="aipt-action-label">Cancel</span></button><button className="danger" type="button" onClick={() => void remove()} disabled={submitting} data-action="delete" title="Delete"><ActionIcon name="delete" /><span className="aipt-action-label">Delete</span></button></footer></section></div>}

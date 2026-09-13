@@ -1,4 +1,5 @@
 'use client';
+import TablePagination from '../../src/components/TablePagination';
 import ActionIcon from '../../src/components/ActionIcon';
 
 import { FormEvent, useCallback, useEffect, useRef, useState } from 'react';
@@ -23,7 +24,7 @@ type Requirement = {
   service?: { id: string; service: string } | null;
 };
 type Response = { data: Requirement[]; total: number };
-const PAGE_SIZE = 10;
+
 
 function normalizeService(value: { id?: string; service?: string; name?: string }): Service {
   return { id: value.id ?? '', service: (value.service ?? value.name ?? '').trim() };
@@ -86,6 +87,7 @@ function RequirementEditor({ value, disabled, onChange }: { value: string; disab
 export default function RequirementsPage() {
   const pathname = usePathname();
   const readOnly = pathname.startsWith('/client-dashboard/');
+  const [PAGE_SIZE, setPageSize] = useState(10);
   const [rows, setRows] = useState<Requirement[]>([]),
     [countries, setCountries] = useState<Country[]>([]),
     [services, setServices] = useState<Service[]>([]),
@@ -159,7 +161,7 @@ export default function RequirementsPage() {
     } finally {
       setLoading(false);
     }
-  }, [request, page, search, sort, direction, readOnly]);
+  }, [request, page, search, sort, direction, readOnly, PAGE_SIZE]);
   useEffect(() => {
     void load();
   }, [load]);
@@ -341,18 +343,7 @@ export default function RequirementsPage() {
               </tbody>
             </table>
           </div>
-          <footer className="country-pagination">
-            <p>Showing {firstResult} to {lastResult} of {total} results</p>
-            <div>
-              <button disabled={currentPage === 1} onClick={() => setPage(currentPage - 1)}>
-                ‹
-              </button>
-              {Array.from({ length: pages }, (_, index) => index + 1).map((value) => <button key={value} className={value === currentPage ? 'current' : ''} onClick={() => setPage(value)}>{value}</button>)}
-              <button disabled={currentPage === pages} onClick={() => setPage(currentPage + 1)}>
-                ›
-              </button>
-            </div>
-          </footer>
+          <TablePagination page={currentPage} pageSize={PAGE_SIZE} total={total} onPageChange={setPage} onPageSizeChange={setPageSize} loading={loading} />
         </section>
       </section>
       {modal && (

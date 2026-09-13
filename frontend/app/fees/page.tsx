@@ -53,7 +53,7 @@ type SyncProgressResponse = {
 };
 
 const CATEGORIES: Category[] = ['Trademark', 'Patent', 'Design', 'Copyright', 'Others', 'Classes'];
-const PAGE_SIZE = 50;
+
 const MAX_CLASS_NUMBER = 45;
 
 const formatMoney = (value: number) => 
@@ -71,6 +71,9 @@ const classFeeValue = (value: FeeRow[keyof FeeRow], field: keyof ClassFee) => {
 
 export default function FeesPage() {
   const router = useRouter();
+  const [PAGE_SIZE,setPageSize]=useState(20);
+  const [nextCursor,setNextCursor]=useState<string>();
+  const [previousCursor,setPreviousCursor]=useState<string>();
   const [activeTab, setActiveTab] = useState<Category>('Trademark');
   const [fees, setFees] = useState<FeeRow[]>([]);
   const [search, setSearch] = useState('');
@@ -97,15 +100,6 @@ export default function FeesPage() {
   });
 
   const loadFees = useCallback(async (category: Category, cursor?: string, force = false) => {
-    const filterKey = JSON.stringify(debouncedFilters);
-    const cached = categoryCache[category];
-    if (!cursor && !force && cached.filterKey === filterKey && cached.data.length > 0) {
-      setFees(cached.data);
-      setPageInfo({ page_size: cached.data.length, has_next: Boolean(cached.cursor), has_prev: false, current_position: 0 });
-      setCurrentCursor(undefined);
-      setPrevCursors([]);
-      return;
-    }
     setLoading(true);
     setError('');
     setNoData(false);
@@ -151,13 +145,9 @@ export default function FeesPage() {
 
       setFees(body.data || []);
       setPageInfo(body.page_info || null);
-      setCurrentCursor(undefined);
-      setPrevCursors([]);
-
-      setCategoryCache(prev => ({
-        ...prev,
-        [category]: { data: body.data || [], cursor: body.next_cursor, filterKey }
-      }));
+      setCurrentCursor(cursor);
+      setNextCursor(body.next_cursor);
+      setPreviousCursor(body.prev_cursor);
     } catch (cause) {
       setNoData(false);
       setError(cause instanceof Error ? cause.message : 'Unable to load fees.');
@@ -166,7 +156,7 @@ export default function FeesPage() {
     } finally {
       setLoading(false);
     }
-  }, [categoryCache, debouncedFilters, router]);
+  }, [debouncedFilters, router, PAGE_SIZE]);
 
   useEffect(() => {
     const timer = window.setTimeout(() => {
@@ -182,61 +172,8 @@ export default function FeesPage() {
     void loadFees(activeTab);
   }, [activeTab, debouncedFilters, loadFees]);
 
-  const handleNextPage = useCallback(async () => {
-    if (pageInfo?.has_next && currentCursor === undefined) {
-      const cached = categoryCache[activeTab];
-      if (!cached.cursor) return;
-
-      setCurrentCursor(cached.cursor);
-      setLoading(true);
-      try {
-        const supabase = getSupabaseBrowserClient();
-        if (!supabase) throw new Error('Supabase is not configured.');
-
-        const { data: { session } } = await supabase.auth.getSession();
-        if (!session) {
-          router.replace('/login');
-          return;
-        }
-
-        const params = new URLSearchParams({
-          category: activeTab,
-          limit: String(PAGE_SIZE),
-          cursor: cached.cursor,
-        });
-        if (debouncedFilters.search) params.append('search', debouncedFilters.search);
-        if (debouncedFilters.country) params.append('country', debouncedFilters.country);
-        if (debouncedFilters.service) params.append('service', debouncedFilters.service);
-
-        const response = await fetchSupabaseFunction(`fees-api?${params}`, {
-          headers: { Authorization: `Bearer ${session.access_token}` },
-        });
-
-        const body = (await response.json()) as FeesApiResponse;
-        setFees(body.data || []);
-        setPageInfo(body.page_info || null);
-        setCategoryCache(prev => ({
-          ...prev,
-          [activeTab]: { data: body.data || [], cursor: body.next_cursor, filterKey: JSON.stringify(debouncedFilters) }
-        }));
-        setPrevCursors(prev => [...prev, cached.cursor as string]);
-      } catch (e) {
-        setError('Failed to load next page');
-      } finally {
-        setLoading(false);
-      }
-    }
-  }, [pageInfo, currentCursor, activeTab, debouncedFilters, categoryCache, router]);
-
-  const handlePrevPage = useCallback(() => {
-    if (pageInfo?.has_prev && prevCursors.length > 0) {
-      const newPrevCursors = [...prevCursors];
-      const previousCursor = newPrevCursors.pop();
-      setPrevCursors(newPrevCursors);
-      setCurrentCursor(previousCursor);
-      void loadFees(activeTab, previousCursor);
-    }
-  }, [pageInfo, prevCursors, activeTab, loadFees]);
+  const handleNextPage = () => { if(!loading && nextCursor) void loadFees(activeTab,nextCursor); };
+  const handlePrevPage = () => { if(!loading && previousCursor) void loadFees(activeTab,previousCursor); };
 
   const handleSync = useCallback(async () => {
     setSyncing(true);
@@ -534,21 +471,21 @@ export default function FeesPage() {
           </div>
 
           {/* Pagination */}
-          <div className="fees-pagination">
+          <div className="fees-pagination"><label>Rows per page <select aria-label="Rows per page" value={PAGE_SIZE} disabled={loading} onChange={e=>setPageSize(Number(e.target.value))}>{[10,20,50,100].map(size=><option key={size} value={size}>{size}</option>)}</select></label>
             <button
               onClick={handlePrevPage}
-              disabled={!pageInfo?.has_prev || prevCursors.length === 0}
+              disabled={loading || !pageInfo?.has_prev}
               type="button"
             >
               Prev
             </button>
             <span>
-              {pageInfo ? `Page ${Math.max(1, prevCursors.length + 1)}` : 'Page 1'} 
+              {pageInfo ? `Page ${Math.floor((pageInfo?.current_position ?? 0) / PAGE_SIZE) + 1}` : 'Page 1'} 
               {pageInfo?.has_next && '...'} • {pageInfo?.page_size || PAGE_SIZE} per page
             </span>
             <button
               onClick={handleNextPage}
-              disabled={!pageInfo?.has_next}
+              disabled={loading || !pageInfo?.has_next}
               type="button"
             >
               Next

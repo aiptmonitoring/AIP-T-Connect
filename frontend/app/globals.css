@@ -13,3 +13,31 @@
 .approval-modal.login-locked-modal button{background:linear-gradient(110deg,#d33a53,#b62440)}
 
 .account-page{min-height:calc(100vh - 1px);display:grid;place-items:center;padding:32px;background:linear-gradient(145deg,#f2fcfe,#f8fbff)}.account-modal{width:min(720px,100%);border:1px solid #d7edf2;border-radius:18px;background:#fff;box-shadow:0 22px 65px rgba(15,107,125,.18);overflow:hidden}.account-modal>header{display:flex;justify-content:space-between;gap:20px;padding:25px 28px;background:linear-gradient(115deg,#0ba9bd,#26bdd0);color:#fff}.account-modal header span{font-size:10px;font-weight:800;letter-spacing:.16em}.account-modal h1{margin:7px 0 5px;font-size:23px}.account-modal header p{margin:0;color:#dcfbff;font-size:12px}.account-modal header>button{width:34px;height:34px;border:1px solid rgba(255,255,255,.45);border-radius:8px;background:transparent;color:#fff;font-size:25px;cursor:pointer}.account-modal form{padding:24px 28px 26px}.account-logo-field{display:flex;align-items:center;gap:16px;margin-bottom:22px;padding-bottom:20px;border-bottom:1px solid #e3f0f3}.account-logo-field img,.account-logo-field>b{display:grid;place-items:center;width:64px;height:64px;border-radius:14px;object-fit:cover;background:#e4fafd;color:#087b8b;font-size:24px}.account-logo-field label{display:grid;gap:5px;font-size:12px;font-weight:700;color:#294e59}.account-logo-field input{font-size:12px}.account-logo-field small{color:#708d95;font-weight:400}.account-form-grid{display:grid;grid-template-columns:1fr 1fr;gap:16px}.account-form-grid label{display:grid;gap:7px;color:#375864;font-size:12px;font-weight:700}.account-form-grid input,.account-form-grid textarea{width:100%;border:1px solid #cfe1e6;border-radius:8px;padding:10px 11px;background:#fbfeff;color:#183e49;font:13px Inter,Arial,sans-serif;outline:0}.account-form-grid input:focus,.account-form-grid textarea:focus{border-color:#13a9bc;box-shadow:0 0 0 3px rgba(19,169,188,.12)}.account-form-grid input[readonly]{background:#f2f6f7;color:#637c83}.account-address{grid-column:1/-1}.account-form-grid textarea{resize:vertical}.account-modal footer{display:flex;justify-content:flex-end;gap:10px;margin-top:22px}.account-modal footer button{height:40px;padding:0 16px;border:1px solid #cfdee2;border-radius:8px;background:#fff;color:#31545e;font-weight:700;cursor:pointer}.account-modal footer .account-save{border:0;background:#0fa9bd;color:#fff}.account-modal button:disabled{opacity:.6;cursor:wait}@media(max-width:620px){.account-page{padding:12px}.account-modal form,.account-modal>header{padding:20px}.account-form-grid{grid-template-columns:1fr}}
+
+/* Keep the supplied landscape artwork proportional and fully visible. */
+.auth-artwork {
+  min-width: 0;
+  align-self: stretch;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: clamp(20px, 2vw, 40px);
+  background: radial-gradient(ellipse at center, #e3f8fb 0%, #c7edf3 58%, #9fd6e1 100%);
+  border-left: 1px solid #b9e1e9;
+}
+.auth-artwork-image {
+  display: block;
+  width: 100%;
+  height: auto;
+  border-radius: 12px;
+  box-shadow: 0 18px 48px rgba(16, 91, 111, 0.16);
+}
+@media (max-width: 900px) {
+  .auth-artwork { display: none; }
+}
+@media (min-width: 761px) {
+  .login-reference-page .auth-artwork { display: flex; }
+}
+@media (min-width: 701px) {
+  .register-page .auth-artwork { display: flex; }
+}

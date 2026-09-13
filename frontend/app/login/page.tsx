@@ -1,5 +1,6 @@
 'use client';
 
+import { AuthArtwork } from '../../src/components/AuthArtwork';
 import Link from 'next/link';
 import { FormEvent, useEffect, useRef, useState } from 'react';
 import { useRouter } from 'next/navigation';
@@ -242,7 +243,7 @@ export default function LoginPage() {
           <footer>© 2026 AIP&amp;T. All rights reserved.</footer>
         </div>
 
-        <aside className="login-reference-visual" aria-label="Manage your intellectual property smarter and faster"><div className="login-reference-image" role="img" aria-label="AIP&T intellectual property dashboard on a laptop in an office" /></aside>
+        <AuthArtwork />
       </section>
       {pendingApproval && (
         <div
