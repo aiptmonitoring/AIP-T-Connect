@@ -8,7 +8,7 @@ function download(blob: Blob, name: string) {
 export async function exportProjects(rows: Row[], format: 'csv'|'xlsx'|'docx') {
   const text=(row:Row,key:string)=>String(row[key] ?? '');
   if(format==='csv'){
-    const quote=(value:string)=>'"'+(/^[=+@-]/.test(value)?"'"+value:value).replaceAll('"','""')+'"';
+    const quote=(value:string)=>'"'+(/^[=+@-]/.test(value)?"'"+value:value).replace(/"/g,'""')+'"';
     download(new Blob(['\ufeff'+[projectColumns,...rows.map(row=>projectColumns.map(key=>text(row,key)))].map(row=>row.map(quote).join(',')).join('\r\n')],{type:'text/csv;charset=utf-8'}),'projects.csv');
   } else if(format==='xlsx'){
     const {Workbook}=await import('exceljs');
