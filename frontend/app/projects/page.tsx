@@ -122,6 +122,9 @@ export default function ProjectsPage() {
   const [modal, setModal] = useState<'form' | 'delete' | 'timeline' | null>(null);
   const [search, setSearch] = useState('');
   const [kind, setKind] = useState('all');
+  const [clientFilter, setClientFilter] = useState('');
+  const [serviceFilter, setServiceFilter] = useState('');
+  const [importPreview, setImportPreview] = useState<Record<string, unknown>[] | null>(null);
   const [approvalFilter, setApprovalFilter] = useState<(typeof approvalStatuses)[number]>('all');
   const [page, setPage] = useState(1);
   const [pageSize, setPageSize] = useState(10);
@@ -198,6 +201,8 @@ export default function ProjectsPage() {
     try {
       const params = new URLSearchParams({ page: String(page), page_size: String(pageSize), sort, direction });
       if (kind !== 'all') params.set('matter_type', kind);
+      if (clientFilter) params.set('client_id', clientFilter);
+      if (serviceFilter) params.set('service_id', serviceFilter);
       if (approvalFilter !== 'all') params.set('approval_status', approvalFilter);
       if (debouncedSearch.trim()) params.set('search', debouncedSearch.trim());
       if (!lookupPromise.current) {
@@ -232,7 +237,7 @@ export default function ProjectsPage() {
       if (version === loadVersion.current) setError(e instanceof Error ? e.message : 'Unable to load projects.');
     }
     finally { if (version === loadVersion.current) setLoading(false); }
-  }, [api, page, pageSize, kind, approvalFilter, debouncedSearch, sort, direction]);
+  }, [api, page, pageSize, kind, approvalFilter, debouncedSearch, sort, direction, clientFilter, serviceFilter]);
 
   useEffect(() => {
     void load();
@@ -441,31 +446,57 @@ export default function ProjectsPage() {
     }
   };
 
-  const exportFile = async (format: 'csv'|'xlsx'|'docx') => {
+  const exportFile = async (format: 'csv'|'xlsx'|'docx'|'pdf') => {
     setTransferBusy(true);setError('');
     try {
       const all: Project[]=[];
       for(let next=1;;next++){
         const params=new URLSearchParams({page:String(next),page_size:'100',sort,direction});
         if(kind!=='all')params.set('matter_type',kind);
+        if(clientFilter)params.set('client_id',clientFilter);
+        if(serviceFilter)params.set('service_id',serviceFilter);
         if(approvalFilter!=='all')params.set('approval_status',approvalFilter);
         if(search.trim())params.set('search',search.trim());
         const result=await api<ProjectListResponse>('projects?'+params);
         const batch=result?.data ?? [];all.push(...batch);
         if(!batch.length||all.length >= (result?.total ?? all.length))break;
       }
-      await exportProjects(all as unknown as Record<string,unknown>[],format);
+      await exportProjects(all as unknown as Record<string,unknown>[],format,[{name:'Clients',columns:['id','company_name'],rows:clients},{name:'Countries',columns:['id','name'],rows:countries},{name:'Services',columns:['id','service'],rows:services},{name:'Procedures',columns:['id','description','service_id'],rows:procedures}]);
     }catch(cause){setError(cause instanceof Error?cause.message:'Export failed.');}finally{setTransferBusy(false);}
   };
   const importWorkbook = async (file: File) => {
-    setTransferBusy(true);setError('');let completed=0;
-    try{
-      const rows=await readProjects(file);
-      if(!window.confirm('Import '+rows.length+' new projects for administrator approval?'))return;
-      for(const row of rows){await api('projects',{method:'POST',body:JSON.stringify(row)});completed++;setTransferMessage('Imported '+completed+' of '+rows.length);}
-      await load();
-    }catch(cause){setError('Imported '+completed+' project(s). '+(cause instanceof Error?cause.message:'Import failed.')+' Correct the remaining rows before retrying.');if(completed)await load();}
-    finally{setTransferBusy(false);if(importFile.current)importFile.current.value='';}
+    setTransferBusy(true); setError(''); setTransferMessage('');
+    try {
+      const incoming = await readProjects(file);
+      const references = new Set<string>();
+      incoming.forEach((row, index) => {
+        const label = 'Row ' + (index + 2) + ': ';
+        if (!clients.some((item) => item.id === row.client_id) || !countries.some((item) => item.id === row.country_id)) throw Error(label + 'client_id and country_id must match existing records.');
+        if (!services.some((item) => item.id === row.service_id) || !(row.procedure_ids as string[]).every((id) => procedures.some((item) => item.id === id && item.service_id === row.service_id))) throw Error(label + 'every procedure must belong to the selected service.');
+        const reference = String(row.aipt_ref_no).toLowerCase();
+        if (references.has(reference)) throw Error(label + 'duplicate AIP&T reference in this workbook.');
+        references.add(reference);
+      });
+      for (let next = 1; ; next++) {
+        const existing = await api<ProjectListResponse>('projects?page=' + next + '&page_size=100');
+        if (existing?.data.some((item) => references.has(item.aipt_ref_no.toLowerCase()))) throw Error('This workbook includes existing AIP&T references. Import creates new projects; remove existing rows before importing.');
+        if (!existing?.data.length || next * 100 >= existing.total) break;
+      }
+      setImportPreview(incoming);
+    } catch (cause) { setError(cause instanceof Error ? cause.message : 'Import failed.'); }
+    finally { setTransferBusy(false); if (importFile.current) importFile.current.value = ''; }
+  };
+  const confirmImport = async () => {
+    if (!importPreview || transferBusy) return;
+    setTransferBusy(true); let completed = 0;
+    try {
+      for (const row of importPreview) { await api('projects', { method: 'POST', body: JSON.stringify(row) }); completed++; }
+      setTransferMessage(completed + ' projects imported for administrator approval.');
+      setImportPreview(null);
+    } catch (cause) {
+      setImportPreview(importPreview.slice(completed));
+      setError(completed + ' projects imported. Remaining rows are retained in the preview. ' + (cause instanceof Error ? cause.message : 'Import failed.'));
+    } finally { setTransferBusy(false); await load(); }
   };
 
   const serviceProcedures = procedures.filter((x) => x.service_id === draft.service_id);
@@ -527,8 +558,8 @@ export default function ProjectsPage() {
             <p>Manage and track all IP projects across different services.</p>
           </div>
           <div className="project-heading-actions">
-            <button className="add-client" type="button" onClick={() => open()} data-action="add" title="Add Project"><ActionIcon name="add" /><span className="aipt-action-label"><span aria-hidden="true">+</span> Add Project</span></button>
-            <button className="add-client" type="button" onClick={addInlineRow} data-action="add" title="Add Row"><ActionIcon name="add" /><span className="aipt-action-label"><span aria-hidden="true">+</span> Add Row</span></button>
+            <button className="add-client" type="button" onClick={() => open()} data-action="add" title="Add Project"><ActionIcon name="add" /><span className="aipt-action-label">Add Project</span></button>
+            <button className="add-client" type="button" onClick={addInlineRow} data-action="add" title="Add Row"><ActionIcon name="add" /><span className="aipt-action-label">Add Row</span></button>
           </div>
         </section>
 
@@ -549,13 +580,15 @@ export default function ProjectsPage() {
               <span aria-hidden="true">Search</span>
               <input value={search} onChange={(e) => { setSearch(e.target.value); setPage(1); }} placeholder="Search projects..." />
             </label>
+            <select aria-label="Filter projects by client" value={clientFilter} onChange={(e) => { setClientFilter(e.target.value); setPage(1); }}><option value="">All clients</option>{clients.map((item) => <option key={item.id} value={item.id}>{item.company_name}</option>)}</select>
+            <select aria-label="Filter projects by service" value={serviceFilter} onChange={(e) => { setServiceFilter(e.target.value); setPage(1); }}><option value="">All services</option>{services.map((item) => <option key={item.id} value={item.id}>{item.service}</option>)}</select>
             <select value={approvalFilter} onChange={(e) => { setApprovalFilter(e.target.value as (typeof approvalStatuses)[number]); setPage(1); }} aria-label="Approval filter"><option value="all">All approvals</option><option value="draft">Draft</option><option value="pending">Pending approval</option><option value="approved">Approved</option><option value="rejected">Rejected</option></select><div className="project-export-actions" aria-label="Export projects"><input ref={importFile} type="file" accept=".xlsx" hidden onChange={e=>{const file=e.target.files?.[0];if(file)void importWorkbook(file)}} />
               <button type="button" disabled={transferBusy} onClick={() => importFile.current?.click()} data-action="import" title="Import"><ActionIcon name="import" /><span className="aipt-action-label">Import</span></button>
               <button type="button" disabled={transferBusy} onClick={() => void exportFile('csv')} data-action="export" title="Export"><ActionIcon name="export" /><span className="aipt-action-label">Export</span></button>
               <button type="button" disabled={transferBusy} onClick={() => void exportFile('xlsx')} data-action="export" title="Excel"><ActionIcon name="export" /><span className="aipt-action-label">Excel</span></button>
               <button type="button" disabled={transferBusy} onClick={() => void exportFile('docx')} data-action="export" title="Word"><ActionIcon name="export" /><span className="aipt-action-label">Word</span></button>
-              <button type="button" onClick={() => window.print()} data-action="pdf" title="PDF"><ActionIcon name="pdf" /><span className="aipt-action-label">PDF</span></button>
-              <button type="button" onClick={() => window.print()} data-action="print" title="Print"><ActionIcon name="print" /><span className="aipt-action-label">Print</span></button>
+              <button type="button" disabled={transferBusy} onClick={() => void exportFile('pdf')} data-action="pdf" title="PDF report"><ActionIcon name="pdf" /><span className="aipt-action-label">PDF / Print</span></button>
+
             </div>
           </header>
 
@@ -564,29 +597,30 @@ export default function ProjectsPage() {
               <thead>
                 <tr>
                   <th>Image</th>
-                  <th aria-sort={sort === 'matter_date' ? (direction === 'asc' ? 'ascending' : 'descending') : 'none'}><button className="aipt-sort" onClick={() => sortBy('matter_date')}>Date {sort === 'matter_date' ? (direction === 'asc' ? '?' : '?') : '?'}</button></th>
-                  <th aria-sort={sort === 'aipt_ref_no' ? (direction === 'asc' ? 'ascending' : 'descending') : 'none'}><button className="aipt-sort" onClick={() => sortBy('aipt_ref_no')}>AIP&amp;T REF {sort === 'aipt_ref_no' ? (direction === 'asc' ? '?' : '?') : '?'}</button></th>
-                  <th aria-sort={sort === 'client_ref_no' ? (direction === 'asc' ? 'ascending' : 'descending') : 'none'}><button className="aipt-sort" onClick={() => sortBy('client_ref_no')}>Client Ref no. {sort === 'client_ref_no' ? (direction === 'asc' ? '?' : '?') : '?'}</button></th>
+                  <th aria-sort={sort === 'matter_date' ? (direction === 'asc' ? 'ascending' : 'descending') : 'none'}><button className="aipt-sort" onClick={() => sortBy('matter_date')}>Date {sort === 'matter_date' ? (direction === 'asc' ? '↑' : '↓') : '↕'}</button></th>
+                  <th aria-sort={sort === 'aipt_ref_no' ? (direction === 'asc' ? 'ascending' : 'descending') : 'none'}><button className="aipt-sort" onClick={() => sortBy('aipt_ref_no')}>AIP&amp;T REF {sort === 'aipt_ref_no' ? (direction === 'asc' ? '↑' : '↓') : '↕'}</button></th>
+                  <th aria-sort={sort === 'client_ref_no' ? (direction === 'asc' ? 'ascending' : 'descending') : 'none'}><button className="aipt-sort" onClick={() => sortBy('client_ref_no')}>Client Ref no. {sort === 'client_ref_no' ? (direction === 'asc' ? '↑' : '↓') : '↕'}</button></th>
                   <th>Service</th>
                   <th>Procedure id</th>
-                  <th aria-sort={sort === 'project_name' ? (direction === 'asc' ? 'ascending' : 'descending') : 'none'}><button className="aipt-sort" onClick={() => sortBy('project_name')}>Project {sort === 'project_name' ? (direction === 'asc' ? '?' : '?') : '?'}</button></th>
-                  <th aria-sort={sort === 'filing_number' ? (direction === 'asc' ? 'ascending' : 'descending') : 'none'}><button className="aipt-sort" onClick={() => sortBy('filing_number')}>Filing Number {sort === 'filing_number' ? (direction === 'asc' ? '?' : '?') : '?'}</button></th>
-                  <th aria-sort={sort === 'register_number' ? (direction === 'asc' ? 'ascending' : 'descending') : 'none'}><button className="aipt-sort" onClick={() => sortBy('register_number')}>Registered Number {sort === 'register_number' ? (direction === 'asc' ? '?' : '?') : '?'}</button></th>
+                  <th aria-sort={sort === 'project_name' ? (direction === 'asc' ? 'ascending' : 'descending') : 'none'}><button className="aipt-sort" onClick={() => sortBy('project_name')}>Project {sort === 'project_name' ? (direction === 'asc' ? '↑' : '↓') : '↕'}</button></th>
+                  <th aria-sort={sort === 'filing_number' ? (direction === 'asc' ? 'ascending' : 'descending') : 'none'}><button className="aipt-sort" onClick={() => sortBy('filing_number')}>Filing Number {sort === 'filing_number' ? (direction === 'asc' ? '↑' : '↓') : '↕'}</button></th>
+                  <th aria-sort={sort === 'register_number' ? (direction === 'asc' ? 'ascending' : 'descending') : 'none'}><button className="aipt-sort" onClick={() => sortBy('register_number')}>Registered Number {sort === 'register_number' ? (direction === 'asc' ? '↑' : '↓') : '↕'}</button></th>
                   <th>Class</th>
                   <th>Country</th>
                   <th>Client</th>
-                  <th aria-sort={sort === 'applicant' ? (direction === 'asc' ? 'ascending' : 'descending') : 'none'}><button className="aipt-sort" onClick={() => sortBy('applicant')}>Applicant {sort === 'applicant' ? (direction === 'asc' ? '?' : '?') : '?'}</button></th>
-                  <th aria-sort={sort === 'status' ? (direction === 'asc' ? 'ascending' : 'descending') : 'none'}><button className="aipt-sort" onClick={() => sortBy('status')}>Status {sort === 'status' ? (direction === 'asc' ? '?' : '?') : '?'}</button></th>
-                  <th aria-sort={sort === 'approval_status' ? (direction === 'asc' ? 'ascending' : 'descending') : 'none'}><button className="aipt-sort" onClick={() => sortBy('approval_status')}>Approval {sort === 'approval_status' ? (direction === 'asc' ? '?' : '?') : '?'}</button></th>
-                  <th aria-sort={sort === 'deadline_date' ? (direction === 'asc' ? 'ascending' : 'descending') : 'none'}><button className="aipt-sort" onClick={() => sortBy('deadline_date')}>Deadline {sort === 'deadline_date' ? (direction === 'asc' ? '?' : '?') : '?'}</button></th>
-                  <th aria-sort={sort === 'renewal_date' ? (direction === 'asc' ? 'ascending' : 'descending') : 'none'}><button className="aipt-sort" onClick={() => sortBy('renewal_date')}>Renewal Date {sort === 'renewal_date' ? (direction === 'asc' ? '?' : '?') : '?'}</button></th>
-                  <th aria-sort={sort === 'filing_date' ? (direction === 'asc' ? 'ascending' : 'descending') : 'none'}><button className="aipt-sort" onClick={() => sortBy('filing_date')}>Filing Date {sort === 'filing_date' ? (direction === 'asc' ? '?' : '?') : '?'}</button></th>
-                  <th aria-sort={sort === 'registered_date' ? (direction === 'asc' ? 'ascending' : 'descending') : 'none'}><button className="aipt-sort" onClick={() => sortBy('registered_date')}>Registration Date {sort === 'registered_date' ? (direction === 'asc' ? '?' : '?') : '?'}</button></th>
+                  <th aria-sort={sort === 'applicant' ? (direction === 'asc' ? 'ascending' : 'descending') : 'none'}><button className="aipt-sort" onClick={() => sortBy('applicant')}>Applicant {sort === 'applicant' ? (direction === 'asc' ? '↑' : '↓') : '↕'}</button></th>
+                  <th aria-sort={sort === 'status' ? (direction === 'asc' ? 'ascending' : 'descending') : 'none'}><button className="aipt-sort" onClick={() => sortBy('status')}>Status {sort === 'status' ? (direction === 'asc' ? '↑' : '↓') : '↕'}</button></th>
+                  <th aria-sort={sort === 'approval_status' ? (direction === 'asc' ? 'ascending' : 'descending') : 'none'}><button className="aipt-sort" onClick={() => sortBy('approval_status')}>Approval {sort === 'approval_status' ? (direction === 'asc' ? '↑' : '↓') : '↕'}</button></th>
+                  <th aria-sort={sort === 'deadline_date' ? (direction === 'asc' ? 'ascending' : 'descending') : 'none'}><button className="aipt-sort" onClick={() => sortBy('deadline_date')}>Deadline {sort === 'deadline_date' ? (direction === 'asc' ? '↑' : '↓') : '↕'}</button></th>
+                  <th aria-sort={sort === 'renewal_date' ? (direction === 'asc' ? 'ascending' : 'descending') : 'none'}><button className="aipt-sort" onClick={() => sortBy('renewal_date')}>Renewal Date {sort === 'renewal_date' ? (direction === 'asc' ? '↑' : '↓') : '↕'}</button></th>
+                  <th aria-sort={sort === 'filing_date' ? (direction === 'asc' ? 'ascending' : 'descending') : 'none'}><button className="aipt-sort" onClick={() => sortBy('filing_date')}>Filing Date {sort === 'filing_date' ? (direction === 'asc' ? '↑' : '↓') : '↕'}</button></th>
+                  <th aria-sort={sort === 'registered_date' ? (direction === 'asc' ? 'ascending' : 'descending') : 'none'}><button className="aipt-sort" onClick={() => sortBy('registered_date')}>Registration Date {sort === 'registered_date' ? (direction === 'asc' ? '↑' : '↓') : '↕'}</button></th>
                   {customFields.map((field) => <th key={field.id}>{field.label}</th>)}
                   <th>Action</th>
                 </tr>
               </thead>
               <tbody>
+                {!inlineDraft && (loading || !rows.length) && <tr><td colSpan={19} className="country-state">{loading ? 'Loading projects…' : 'No projects match these filters.'}</td></tr>}
                 {inlineDraft && <tr className="project-inline-row">
                   <td><input type="file" accept="image/png,image/jpeg,image/webp,image/svg+xml" onChange={(event) => setInlineImage(event.target.files?.[0] ?? null)} /></td>
                   <td><input type="date" value={inlineDraft.matter_date} onChange={(event) => setInlineDraft({ ...inlineDraft, matter_date: event.target.value })} /></td>
@@ -877,6 +911,7 @@ export default function ProjectsPage() {
         </Modal>
       )}
 
+      {importPreview && <Modal title="Review project import" close={() => { if (!transferBusy) setImportPreview(null); }}><p>{importPreview.length} new projects will be created for administrator approval. First 8 rows shown.</p>{error && <p role="alert">{error}</p>}<div className="country-table-wrap"><table><thead><tr><th>Reference</th><th>Project</th><th>Applicant</th></tr></thead><tbody>{importPreview.slice(0,8).map((item,index) => <tr key={index}><td>{String(item.aipt_ref_no)}</td><td>{String(item.project_name)}</td><td>{String(item.applicant)}</td></tr>)}</tbody></table></div><div className="data-actions"><button type="button" disabled={transferBusy} onClick={() => setImportPreview(null)}>Cancel</button><button type="button" disabled={transferBusy} onClick={() => void confirmImport()}>{transferBusy ? 'Importing…' : 'Confirm import'}</button></div></Modal>}
     </main>
   );
 }

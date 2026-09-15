@@ -1,4 +1,6 @@
 'use client';
+import { toPlainText } from '../../src/lib/plain-text';
+import DataTransfer from '../../src/components/DataTransfer';
 import TablePagination from '../../src/components/TablePagination';
 import ActionIcon from '../../src/components/ActionIcon';
 
@@ -51,6 +53,9 @@ type AddonFee = {
   procedure_name?: string;
 };
 type Fee = {
+  available?: boolean;
+  issue?: string | null;
+  currency?: string;
   id: string;
   country_id: string;
   category: Category;
@@ -60,6 +65,7 @@ type Fee = {
   total_fee: number;
 };
 type Lookup = {
+  fee_dataset?: { id: string; version_number: number; published_at: string | null } | null;
   role?: "administrator" | "client";
   current_client_id?: string | null;
   clients: Client[];
@@ -190,6 +196,8 @@ export default function QuotationsPage() {
   const [page, setPage] = useState(1);
   const [pageSize,setPageSize]=useState(10);
   const [ascending,setAscending]=useState(false);
+  const [quoteSort, setQuoteSort] = useState('created_at');
+  const [quoteCountry, setQuoteCountry] = useState('');
   const [search, setSearch] = useState("");
   const [status, setStatus] = useState("");
   const [total, setTotal] = useState(0);
@@ -212,6 +220,7 @@ export default function QuotationsPage() {
   const [cart, setCart] = useState<QuoteItem[]>([]);
   const [error, setError] = useState("");
   const [notice, setNotice] = useState("");
+  const [createdReference, setCreatedReference] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [verificationQr, setVerificationQr] = useState("");
@@ -242,6 +251,8 @@ export default function QuotationsPage() {
         page: String(page),
         page_size: String(pageSize),
         direction:ascending?"asc":"desc",
+        sort: quoteSort,
+        country_id: quoteCountry,
       });
       if (search.trim()) params.set("search", search.trim());
       if (status) params.set("status", status);
@@ -270,7 +281,7 @@ export default function QuotationsPage() {
     } finally {
       setLoading(false);
     }
-  }, [api, page, search, status, pageSize, ascending]);
+  }, [api, page, search, status, pageSize, ascending, quoteSort, quoteCountry]);
   useEffect(() => {
     void load();
   }, [load]);
@@ -284,6 +295,16 @@ export default function QuotationsPage() {
       .catch(() => setVerificationQr(""));
   }, [modal, selected]);
 
+  const exportQuotes = async () => {
+    const result: Quotation[] = [];
+    for (let next = 1; ; next++) {
+      const params = new URLSearchParams({ page: String(next), page_size: '100', search, status, direction: ascending ? 'asc' : 'desc', sort: quoteSort, country_id: quoteCountry });
+      const response = await api<ListResponse>('quotations?' + params);
+      result.push(...response.data);
+      if (!response.data.length || result.length >= response.total) break;
+    }
+    return result.map((quote) => ({ reference: quote.reference_no, client: quote.client?.company_name, invoice_date: quote.invoice_date, status: quote.status, currency: quote.currency, total: quote.grand_total, subject: toPlainText(quote.subject) }));
+  };
   const client = lookup.clients.find((item) => item.id === clientId);
   const isClientRole = lookup.role === "client";
   const projects = lookup.projects.filter(
@@ -313,21 +334,20 @@ export default function QuotationsPage() {
         availableProcedures.some((procedure) => procedure.name === procedureName && procedure.id === item.procedure_id),
       ),
   );
-  const generatedFees = countryIds.flatMap((countryId) =>
-    procedureNames
-      .map((procedureName) =>
-        lookup.fees.find(
-          (fee) =>
-            fee.country_id === countryId &&
-            fee.category === category &&
-            fee.procedure_name === procedureName,
-        ),
-      )
-      .filter((fee): fee is Fee => Boolean(fee)),
-  );
-  const allExactFeesFound =
-    generatedFees.length === countryIds.length * procedureNames.length &&
-    generatedFees.length > 0;
+  const selectionFees = countryIds.flatMap((countryId) => procedureNames.map((procedureName) => {
+    const matches = lookup.fees.filter((fee) => fee.country_id === countryId && fee.category === category && fee.procedure_name === procedureName);
+    const fee = matches.length === 1 ? matches[0] : null;
+    const valid = fee && fee.available !== false && (!fee.currency || fee.currency === 'USD') && [fee.official_fee, fee.attorney_fee, fee.total_fee].every((value) => typeof value === 'number' && Number.isFinite(value) && value >= 0);
+    return { countryId, procedureName, fee: valid ? fee : null, issue: matches.length > 1 ? 'Multiple matching rates; resolve the fee data before quoting.' : fee?.issue || 'No complete published fee is available for this combination.' };
+  }));
+  const generatedFees = selectionFees.map((item) => item.fee).filter((fee): fee is Fee => Boolean(fee));
+  const allExactFeesFound = selectionFees.length > 0 && selectionFees.every((item) => item.fee) && Boolean(lookup.fee_dataset?.id);
+  useEffect(() => {
+    setRequirementIds((current) => {
+      const valid = current.filter((id) => availableRequirements.some((item) => item.id === id));
+      return valid.length === current.length ? current : valid;
+    });
+  }, [category, countryIds, procedureNames, lookup]);
   const roundFee = (value: number) => Math.round(Math.max(0, value) * 100) / 100;
   const withSnapshot = (fee: Fee, quantity = 1): QuoteItem => ({
     country_id: fee.country_id,
@@ -436,6 +456,9 @@ export default function QuotationsPage() {
     setCart([]);
   };
   const openNew = () => {
+    setCreatedReference(null);
+    setNotice("");
+    setVerificationQr("");
     setSelected(null);
     resetForm();
     setError("");
@@ -491,6 +514,7 @@ export default function QuotationsPage() {
       setError("One or more selected requirements do not match the selected fee filters.");
       return;
     }
+    if (!lookup.fee_dataset?.id) { setError("Published fee version is unavailable. Refresh after deploying the updated quotation service."); return; }
     if (!allExactFeesFound) {
       setError(
         "A fee is not configured for one or more selected country and procedure combinations. Choose procedures with configured fees before adding to the cart.",
@@ -524,6 +548,7 @@ export default function QuotationsPage() {
   };
   const save = async (event: FormEvent) => {
     event.preventDefault();
+    if (saving) return;
     const invalidCartItem = cart.find((item) => {
       const quantity = Number(item.quantity);
       const classTotal = item.category === "Trademark"
@@ -561,6 +586,7 @@ export default function QuotationsPage() {
       const saved = await api<{ id: string; reference_no: string; invoice_verification_token?: string }>(selected ? `quotations/${selected.id}` : "quotations", {
         method: selected ? "PUT" : "POST",
         body: JSON.stringify({
+          fee_dataset_version_id: lookup.fee_dataset?.id,
           client_id: clientId,
           project_id: projectId || null,
           client_matter_ref: clientMatterRef,
@@ -571,13 +597,9 @@ export default function QuotationsPage() {
           items: cart,
         }),
       });
-      if (saved.invoice_verification_token) {
-        setVerificationQr(await QRCode.toDataURL(
-          `${window.location.origin}/invoice/verify/${saved.invoice_verification_token}`,
-          { width: 180, margin: 2, errorCorrectionLevel: "H" },
-        ));
-      }
+      // Creation has committed; QR rendering must not turn success into a save error.
       setModal(null);
+      if (!selected) setCreatedReference(saved.reference_no);
       setNotice(
         selected
           ? "Quotation updated."
@@ -688,8 +710,11 @@ export default function QuotationsPage() {
                 </button>
               ))}
             </div>
+            <select aria-label="Sort quotations" value={quoteSort} onChange={(event) => { setQuoteSort(event.target.value); setPage(1); }}><option value="created_at">Created date</option><option value="reference_no">Invoice number</option><option value="grand_total">Total</option><option value="status">Status</option><option value="invoice_date">Invoice date</option></select>
+            <select aria-label="Filter quotation country" value={quoteCountry} onChange={(event) => { setQuoteCountry(event.target.value); setPage(1); }}><option value="">All countries</option>{lookup.countries.map((country) => <option key={country.id} value={country.id}>{country.name}</option>)}</select>
             <span>{total} quotations</span>
           </div>
+          <div className="data-toolbar"><DataTransfer title="Quotations" getRows={exportQuotes} disabled={loading || saving} columns={[{key:'reference',label:'Invoice number'},{key:'client',label:'Client'},{key:'invoice_date',label:'Invoice date'},{key:'status',label:'Status'},{key:'currency',label:'Currency'},{key:'total',label:'Total'},{key:'subject',label:'Subject'}]} /></div>
           <div className="country-table-wrap">
             <table>
               <thead>
@@ -702,7 +727,7 @@ export default function QuotationsPage() {
                   <th>Procedure</th>
                   <th>Total</th>
                   <th>Status</th>
-                  <th><button className="aipt-sort" onClick={()=>{setAscending(!ascending);setPage(1)}}>Date {ascending?"?":"?"}</button></th>
+                  <th><button className="aipt-sort" onClick={()=>{setQuoteSort("created_at");setAscending(!ascending);setPage(1)}}>Date {ascending?"↑":"↓"}</button></th>
                   <th>Actions</th>
                 </tr>
               </thead>
@@ -852,6 +877,10 @@ export default function QuotationsPage() {
             classCount={classCount}
             setClassCount={setClassCount}
             availableRequirements={availableRequirements}
+            selectionFees={selectionFees}
+            allExactFeesFound={allExactFeesFound}
+            loadingFees={loading}
+            retryFees={() => void load()}
             countries={lookup.countries}
             generateFees={generateFees}
             cart={cart}
@@ -875,6 +904,19 @@ export default function QuotationsPage() {
             onClose={() => setModal(null)}
             onSubmit={save}
           />
+        )}
+        {createdReference !== null && (
+          <div className="quotation-backdrop">
+            <section className="quotation-dialog compact quotation-success" role="dialog" aria-modal="true" aria-labelledby="quotation-success-title">
+              <h2 id="quotation-success-title">Quotation successfully created</h2>
+              <p>Reference: <strong>{createdReference}</strong></p>
+              <p>Status: Pending Approval</p>
+              <footer className="modal-actions">
+                <button type="button" autoFocus onClick={openNew}>Create another quotation</button>
+                <button type="button" onClick={() => setCreatedReference(null)}>Done</button>
+              </footer>
+            </section>
+          </div>
         )}
         {feeModal && (
           <FeeModal
@@ -1047,7 +1089,7 @@ function RequirementTable({
                     </span>
                   </td>
                   <td>{item.procedure ?? "-"}</td>
-                  <td>{item.description}</td>
+                  <td>{toPlainText(item.description)}</td>
                 </tr>
               );
             }) : (
@@ -1095,6 +1137,10 @@ function InvoiceModal(props: any) {
     setSelectedClassNumbers,
     classCount,
     availableRequirements,
+    selectionFees,
+    allExactFeesFound,
+    loadingFees,
+    retryFees,
     countries,
     generateFees,
     cart,
@@ -1116,6 +1162,14 @@ function InvoiceModal(props: any) {
   const [editingRow, setEditingRow] = useState<number | null>(null);
   const [draftQuantity, setDraftQuantity] = useState("1");
   const validDraft = Number.isInteger(Number(draftQuantity)) && Number(draftQuantity) >= 1 && Number(draftQuantity) <= 1000;
+  const previewMultiplier = (editingRow === null ? 1 : Number(draftQuantity)) * (category === "Trademark" ? Math.max(1, selectedClassNumbers.length) : 1);
+  const previewMoney = (value: number) => money(Math.round(value * previewMultiplier * 100) / 100);
+  const cartBlocker = loadingFees ? "Loading fees..."
+    : !lookup.fee_dataset?.id ? "Published fees are unavailable. Retry loading fees or contact your administrator."
+    : !clientId ? "Select a client before adding fees."
+    : !countryIds.length || !procedureNames.length ? "Select a country and procedure to add fees."
+    : !allExactFeesFound ? "Resolve the unavailable rates shown above before adding fees."
+    : editingRow !== null && !validDraft ? "Enter a whole-number quantity from 1 to 1,000." : "";
   const cancelEdit = () => {
     setEditingRow(null);
     setCountryIds([]);
@@ -1278,11 +1332,18 @@ function InvoiceModal(props: any) {
             <div className="selection-panels">
               <RequirementTable countries={countries} requirements={availableRequirements} selected={requirementIds} onChange={setRequirementIds} />
             </div>
+            <div className="fee-preview" aria-live="polite">
+              <p>{lookup.fee_dataset ? 'Published fee version ' + lookup.fee_dataset.version_number + (lookup.fee_dataset.published_at ? ' · ' + dateText(lookup.fee_dataset.published_at) : '') : ''}</p>
+              {selectionFees.length ? <table><thead><tr><th>Country</th><th>Procedure</th><th>Official (USD)</th><th>Attorney (USD)</th><th>Total (USD)</th></tr></thead><tbody>{selectionFees.map((item: { countryId: string; procedureName: string; fee: Fee | null; issue: string }) => <tr key={item.countryId + item.procedureName}><td>{countries.find((country: Country) => country.id === item.countryId)?.name}</td><td>{item.procedureName}</td>{item.fee ? <><td>{editingRow === null || validDraft ? previewMoney(item.fee.official_fee) : "?"}</td><td>{editingRow === null || validDraft ? previewMoney(item.fee.attorney_fee) : "?"}</td><td>{editingRow === null || validDraft ? previewMoney(item.fee.total_fee) : "?"}</td></> : <td colSpan={3} className="fee-missing">{item.issue}</td>}</tr>)}</tbody></table> : <p>Select a service, country and procedure to view matching requirements and fees.</p>}
+            </div>
+            {selectionFees.length > 0 && <p>Amounts reflect your selections. VAT and discount are shown in the cart.</p>}
+            {cartBlocker && <p id="cart-blocker" role="status">{cartBlocker}</p>}
+            {!lookup.fee_dataset?.id && <button type="button" onClick={retryFees} disabled={loadingFees || saving}>{loadingFees ? "Loading fees..." : "Retry loading fees"}</button>}
             <button
               className="outline-action generate-fees"
               type="button"
               onClick={() => editingRow === null ? generateFees() : updateRow()}
-             disabled={editingRow !== null && !validDraft} data-action={editingRow === null ? "add" : "update"} title={editingRow === null ? "Add to cart" : "Update cart item"}><ActionIcon name={editingRow === null ? "add" : "update"} /><span className="aipt-action-label">{editingRow === null ? "Add to cart" : "Update cart item"}</span></button>
+             disabled={Boolean(cartBlocker) || saving} aria-describedby={cartBlocker ? "cart-blocker" : undefined} data-action={editingRow === null ? "add" : "update"} title={editingRow === null ? "Add to cart" : "Update cart item"}><ActionIcon name={editingRow === null ? "add" : "update"} /><span className="aipt-action-label">{editingRow === null ? "Add to cart" : "Update cart item"}</span></button>
             {editingRow !== null && <button type="button" onClick={cancelEdit}>Cancel edit</button>}
           </div>
           <div className="quotation-section">

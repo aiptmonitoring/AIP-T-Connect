@@ -1,0 +1,12 @@
+{
+  "id": "b7e15a35-a2fa-4685-bdaf-74935c7f6911",
+  "company_name": "Clarivate",
+  "email": "pendingemail@test.com",
+  "phone": "123456855",
+  "client_type": "Corporate",
+  "address": "pending address",
+  "country_id": "47bce3ae-858f-4b31-bfed-a27726bbd7d3",
+  "fee_classification_id": "1348573f-4df4-4282-98ba-a3c28e62d307",
+  "status": "Active",
+  "notes": "all client imported only no details\nImport source: client.csv; source assigned_id: 271. Contact details are placeholders and are NOT VERIFIED. Client type Corporate is a provisional default and is NOT VERIFIED. Country U.S. Virgin Islands confirmed by user. Import batch: client-csv-2026-09-14T14-42-11-999Z"
+}

@@ -30,8 +30,8 @@ async function authenticate(request: Request) {
   const db = createClient(Deno.env.get("SUPABASE_URL")!, Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!);
   const { data: { user } } = token ? await db.auth.getUser(token) : { data: { user: null } };
   if (!user) return { db, user: null, error: json({ error: "Authentication is required." }, 401) };
-  const { data: profile } = await db.from("profiles").select("role").eq("id", user.id).single();
-  if (profile?.role !== "administrator") return { db, user: null, error: json({ error: "Administrator access is required." }, 403) };
+  const { data: profile } = await db.from("profiles").select("role,approval_status,account_status").eq("id", user.id).single();
+  if (profile?.role !== "administrator" || profile.account_status === "inactive" || (profile.approval_status && profile.approval_status !== "approved")) return { db, user: null, error: json({ error: "Administrator access is required." }, 403) };
   return { db, user, error: null };
 }
 
@@ -88,16 +88,30 @@ Deno.serve(async (request) => {
   if (error) return error;
   try {
     if (request.method === "GET") {
-      const [{ data: users }, { data: profiles }] = await Promise.all([
-        db.auth.admin.listUsers({ page: 1, perPage: 1000 }),
-        db.from("profiles").select("id,full_name,company_name,logo_url,role,approval_status,approved_at,approved_by,reviewed_at,reviewed_by,account_status,failed_login_attempts,locked_at,last_login_ip,last_login_at,created_at,client_id,client:clients(id,assigned_id,company_name)"),
-      ]);
+      // Auth and REST each cap list sizes. Read every page before filtering or export.
+      const authUsers: Array<{ id: string; email?: string; user_metadata?: Record<string, unknown>; created_at: string; last_sign_in_at?: string }> = [];
+      for (let page = 1; ; page += 1) {
+        const result = await db.auth.admin.listUsers({ page, perPage: 1000 });
+        if (result.error) throw result.error;
+        authUsers.push(...result.data.users);
+        if (result.data.users.length < 1000) break;
+      }
+      const profiles = [];
+      for (let offset = 0; ; offset += 1000) {
+        const result = await db.from("profiles").select("id,full_name,company_name,logo_url,role,approval_status,approved_at,approved_by,reviewed_at,reviewed_by,account_status,failed_login_attempts,locked_at,last_login_ip,last_login_at,created_at,client_id,client:clients(id,assigned_id,company_name)").order("id").range(offset, offset + 999);
+        if (result.error) throw result.error;
+        profiles.push(...result.data);
+        if (result.data.length < 1000) break;
+      }
       const profileMap = new Map((profiles ?? []).map((profile) => [profile.id, profile]));
-      return json(await Promise.all((users?.users ?? []).map(async (user) => {
+      return json(await Promise.all(authUsers.map(async (user) => {
         const profile = profileMap.get(user.id);
         const logoKey = profile?.logo_url ?? null;
         return {
           id: user.id,
+          deletion_supported: true,
+          deletion_policy: 'non_admin_only',
+          profile_import_supported: true,
           email: user.email ?? "",
           full_name: profile?.full_name || user.user_metadata?.full_name || "",
           company_name: (Array.isArray(profile?.client) ? profile.client[0]?.company_name : profile?.client?.company_name) ?? profile?.company_name ?? user.user_metadata?.company_name ?? "",
@@ -121,6 +135,36 @@ Deno.serve(async (request) => {
 
     if (request.method === "PUT" && id) {
       const body = await request.json();
+      if (!/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(id)) return json({ error: 'A valid user ID is required.' }, 400);
+      if (body.action === 'import_profile') {
+        const allowed = new Set(['action', 'confirm_email', 'full_name', 'company_name']);
+        if (Object.keys(body).some((key) => !allowed.has(key))) return json({ error: 'Excel import can update only full name and profile company name.' }, 400);
+        const result = await db.auth.admin.getUserById(id);
+        if (result.error || !result.data.user) return json({ error: 'Existing user not found. Imports cannot create login accounts.' }, 404);
+        if (typeof body.confirm_email !== 'string' || body.confirm_email.trim().toLowerCase() !== result.data.user.email?.toLowerCase()) return json({ error: 'The user ID and email must match the same existing account.' }, 409);
+        const before = await db.from('profiles').select('id,full_name,company_name,client_id,client:clients(company_name)').eq('id', id).maybeSingle();
+        if (before.error) throw before.error;
+        if (!before.data) return json({ error: 'This account has no existing profile to update.' }, 409);
+        const changes: Record<string, string> = {};
+        for (const field of ['full_name', 'company_name']) {
+          if (body[field] === undefined) continue;
+          if (typeof body[field] !== 'string' || !body[field].trim() || body[field].trim().length > 200 || /[\u0000-\u001f]/.test(body[field])) return json({ error: field + ' must contain between 1 and 200 characters, without control characters.' }, 400);
+          changes[field] = body[field].trim();
+        }
+        if (!Object.keys(changes).length) return json({ error: 'No editable profile details were supplied.' }, 400);
+        if (before.data.client_id && changes.company_name !== undefined) {
+          const company = Array.isArray(before.data.client) ? before.data.client[0]?.company_name : before.data.client?.company_name;
+          if (changes.company_name !== company) return json({ error: 'Linked company names must be edited on the Clients page.' }, 409);
+          delete changes.company_name;
+        }
+        if (!Object.keys(changes).length) return json({ updated: false, unchanged: true });
+        const saved = await db.from('profiles').update(changes).eq('id', id).select('id,full_name,company_name').single();
+        if (saved.error) throw saved.error;
+        const audit = await db.from('audit_logs').insert({ actor_id: user.id, entity_type: 'user_account', entity_id: id, action: 'update', before_data: { full_name: before.data.full_name, company_name: before.data.company_name }, after_data: { ...changes, source: 'excel_import' } });
+        return json({ updated: true, user: saved.data, warning: audit.error ? 'Profile saved, but the audit entry could not be saved.' : null });
+      }
+      if (id === user.id && (body.account_status === 'inactive' || ['pending', 'rejected', 'suspended'].includes(body.approval_status))) return json({ error: 'You cannot revoke your own administrator access.' }, 409);
+      if (Object.keys(body).some((key) => !['approval_status', 'account_status', 'unlock'].includes(key))) return json({ error: 'Unsupported account update.' }, 400);
       const updates: Record<string, unknown> = {};
       let approvedClientId: string | null = null;
       if (body.approval_status === 'approved') {
@@ -138,6 +182,7 @@ Deno.serve(async (request) => {
       }
       if (body.unlock === true) { updates.locked_at = null; updates.failed_login_attempts = 0; }
       if (body.account_status === "active" || body.account_status === "inactive") updates.account_status = body.account_status;
+      if (!Object.keys(updates).length) return json({ error: 'No valid account changes were supplied.' }, 400);
       const { data, error: updateError } = await db.from("profiles").update(updates).eq("id", id).select("id,full_name,company_name,logo_url,role,approval_status,approved_at,approved_by,reviewed_at,reviewed_by,account_status,failed_login_attempts,locked_at,last_login_ip,last_login_at,client_id").single();
       if (updateError) throw updateError;
       const auditResult = await db.from("audit_logs").insert({ actor_id: user.id, entity_type: "user_account", entity_id: id, action: "update", before_data: null, after_data: { approval_status: data.approval_status, account_status: data.account_status, client_id: data.client_id } });
@@ -158,11 +203,26 @@ Deno.serve(async (request) => {
     }
 
     if (request.method === "DELETE" && id) {
-      const { error: profileError } = await db.from("profiles").delete().eq("id", id);
+      if (!/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(id)) return json({ error: 'A valid user ID is required.' }, 400);
+      if (id === user.id) return json({ error: 'You cannot delete your own account.' }, 409);
+      const body = await request.json().catch(() => ({}));
+      const force = body.force === true;
+      const { data: target, error: targetError } = await db.auth.admin.getUserById(id);
+      if (targetError || !target.user) return json({ error: 'User not found.' }, 404);
+      if (!target.user.email || body.confirm_email !== target.user.email) return json({ error: 'Enter the exact user email to confirm deletion.' }, 400);
+      const { data: profile, error: profileError } = await db.from('profiles').select('id,client_id,role').eq('id', id).maybeSingle();
       if (profileError) throw profileError;
+      if (!profile) return json({ error: 'The user role could not be verified. Deletion is blocked.' }, 409);
+      if (profile.role === 'administrator') return json({ error: 'Administrator accounts cannot be deleted, including with Force Delete.' }, 403);
+      const { count: membershipCount, error: membershipError } = await db.from('client_memberships').select('id', { count: 'exact', head: true }).eq('user_id', id);
+      if (membershipError) throw membershipError;
+      if (!force && (profile?.client_id || membershipCount)) return json({ error: 'This user is linked to a client. Use Force Delete to remove their account and memberships while retaining client records.' }, 409);
+      // Delete through Auth first. Database cascades remove the profile and memberships
+      // atomically; restrictive business-history references remain protected.
       const { error: authError } = await db.auth.admin.deleteUser(id);
-      if (authError) throw authError;
-      return new Response(null, { status: 204, headers: cors });
+      if (authError) return json({ error: 'The user could not be deleted. Historical records or owned files may require this account. Deactivate it to revoke access while preserving those records.' }, 409);
+      const { error: auditError } = await db.from('audit_logs').insert({ actor_id: user.id, entity_type: 'user_account', entity_id: id, action: 'delete', before_data: { email: target.user.email, role: profile?.role, client_id: profile?.client_id }, after_data: { force, memberships_removed: membershipCount ?? 0 } });
+      return json({ deleted: true, warning: auditError ? 'User deleted, but the audit entry could not be saved.' : null });
     }
 
     return json({ error: "Method not allowed." }, 405);

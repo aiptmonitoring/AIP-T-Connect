@@ -23,6 +23,7 @@ import './register-security.css';
 import './dashboard-action-theme.css';
 import './system-theme.css';
 import './table-controls.css';
+import './management-workspace.css';
 import AdminAppShell from '../src/components/AdminAppShell';
 
 export const metadata: Metadata = {

@@ -1,8 +1,10 @@
 'use client';
+import { toPlainText } from '../../src/lib/plain-text';
+import DataTransfer from '../../src/components/DataTransfer';
 import TablePagination from '../../src/components/TablePagination';
 import ActionIcon from '../../src/components/ActionIcon';
 
-import { FormEvent, useCallback, useEffect, useRef, useState } from 'react';
+import { FormEvent, useCallback, useEffect, useMemo, useState } from 'react';
 import { usePathname } from 'next/navigation';
 import {
   fetchSupabaseFunction,
@@ -42,59 +44,19 @@ function enrichRequirement(item: Requirement, serviceRows: Service[], procedureR
   };
 }
 
-function plainText(value: string) {
-  if (typeof window === 'undefined') return value.replace(/<[^>]*>/g, '');
-  const node = document.createElement('div');
-  node.innerHTML = value;
-  return node.textContent ?? '';
-}
-
-function safeHtml(value: string) {
-  if (typeof window === 'undefined') return value;
-  const node = document.createElement('div');
-  node.innerHTML = value;
-  node.querySelectorAll('script,style,iframe,object,embed').forEach((item) => item.remove());
-  node.querySelectorAll('*').forEach((item) => {
-    [...item.attributes].forEach((attribute) => {
-      if (attribute.name.startsWith('on') || attribute.name === 'style' || attribute.name === 'href' && !attribute.value.startsWith('#')) item.removeAttribute(attribute.name);
-    });
-  });
-  return node.innerHTML;
-}
-
-function RequirementEditor({ value, disabled, onChange }: { value: string; disabled: boolean; onChange: (value: string) => void }) {
-  const editor = useRef<HTMLDivElement>(null);
-  useEffect(() => {
-    if (editor.current && editor.current.innerHTML !== value) editor.current.innerHTML = value;
-  }, [value]);
-  const format = (command: string) => {
-    editor.current?.focus();
-    document.execCommand(command);
-    onChange(editor.current?.innerHTML ?? '');
-  };
-  return <div className="requirement-editor-shell">
-    {!disabled && <div className="requirement-editor-toolbar" role="toolbar" aria-label="Description formatting">
-      <button type="button" aria-label="Bold" onClick={() => format('bold')}><b>B</b></button>
-      <button type="button" aria-label="Italic" onClick={() => format('italic')}><i>I</i></button>
-      <button type="button" aria-label="Underline" onClick={() => format('underline')}><u>U</u></button>
-      <button type="button" aria-label="Bulleted list" onClick={() => format('insertUnorderedList')}>• List</button>
-      <button type="button" aria-label="Numbered list" onClick={() => format('insertOrderedList')}>1. List</button>
-    </div>}
-    <div ref={editor} className="requirement-editor" contentEditable={!disabled} suppressContentEditableWarning role="textbox" aria-multiline="true" onInput={() => onChange(editor.current?.innerHTML ?? '')} />
-  </div>;
-}
-
 export default function RequirementsPage() {
   const pathname = usePathname();
   const readOnly = pathname.startsWith('/client-dashboard/');
   const [PAGE_SIZE, setPageSize] = useState(10);
-  const [rows, setRows] = useState<Requirement[]>([]),
+  const [allRows, setAllRows] = useState<Requirement[]>([]),
     [countries, setCountries] = useState<Country[]>([]),
     [services, setServices] = useState<Service[]>([]),
     [procedures, setProcedures] = useState<Procedure[]>([]);
   const [page, setPage] = useState(1),
-    [total, setTotal] = useState(0),
     [search, setSearch] = useState('');
+  const [countryFilter, setCountryFilter] = useState('');
+  const [serviceFilter, setServiceFilter] = useState('');
+  const [procedureFilter, setProcedureFilter] = useState('');
   const [sort, setSort] = useState('created'),
     [direction, setDirection] = useState('desc');
   const [modal, setModal] = useState<'add' | 'edit' | 'view' | 'delete' | null>(
@@ -130,38 +92,42 @@ export default function RequirementsPage() {
   const load = useCallback(async () => {
     setLoading(true);
     try {
-      const params = new URLSearchParams({
-        page: String(page),
-        page_size: String(PAGE_SIZE),
-        search,
-        sort,
-        direction,
-      });
+      const readAll = async (path: string, sizeKey = 'page_size') => {
+        const result: any[] = [];
+        for (let next = 1; ; next++) {
+          const response = await request(path + '?' + new URLSearchParams({ page: String(next), [sizeKey]: '100' }));
+          const batch = Array.isArray(response) ? response : response.data ?? [];
+          result.push(...batch);
+          if (Array.isArray(response) || !batch.length || result.length >= (response.total ?? Infinity) || batch.length < 100) break;
+        }
+        return result;
+      };
       const [requirements, countryRows, serviceRows, procedureRows] = await Promise.all([
-        request(`requirements?${params}`),
+        readAll('requirements'),
         readOnly ? Promise.resolve([]) : request('countries'),
-        readOnly ? Promise.resolve([]) : request('services?page=1&page_size=100&dir=asc'),
-        readOnly ? Promise.resolve({ data: [] }) : request('procedures?page=1&perPage=100&sort=description'),
+        readOnly ? Promise.resolve([]) : readAll('services'),
+        readOnly ? Promise.resolve([]) : readAll('procedures', 'perPage'),
       ]);
-      setCountries(countryRows as Country[]);
-      const serviceData = Array.isArray(serviceRows)
-        ? serviceRows
-        : (serviceRows as { data?: Service[] }).data ?? [];
-      const liveServices = (serviceData as Array<{ id?: string; service?: string; name?: string }>).map(normalizeService).filter((item) => item.id && item.service);
-      const liveProcedures = ((procedureRows as { data?: Procedure[] }).data ?? []).filter((item) => item.id && item.description && item.service_id);
-      setRows((requirements as Response).data.map((item) => enrichRequirement(item, liveServices, liveProcedures)));
-      setTotal((requirements as Response).total);
-      setServices(liveServices);
-      setProcedures(liveProcedures);
+      const liveServices = serviceRows.map(normalizeService).filter((item: Service) => item.id && item.service);
+      const liveProcedures = procedureRows.filter((item: Procedure) => item.id && item.description && item.service_id);
+      const enriched = requirements.map((item: Requirement) => enrichRequirement(item, liveServices, liveProcedures));
+      setAllRows(enriched);
+      setCountries(readOnly ? [...new Map(enriched.filter((item: Requirement) => item.country).map((item: Requirement) => [item.country!.id, item.country!])).values()] as Country[] : countryRows);
+      setServices(readOnly ? [...new Map(enriched.filter((item: Requirement) => item.service).map((item: Requirement) => [item.service!.id, item.service!])).values()] as Service[] : liveServices);
+      setProcedures(readOnly ? [...new Map(enriched.filter((item: Requirement) => item.procedure).map((item: Requirement) => [item.procedure!.id, item.procedure!])).values()] as Procedure[] : liveProcedures);
       setError('');
-    } catch (cause) {
-      setError(
-        cause instanceof Error ? cause.message : 'Unable to load requirements.',
-      );
-    } finally {
-      setLoading(false);
-    }
-  }, [request, page, search, sort, direction, readOnly, PAGE_SIZE]);
+    } catch (cause) { setError(cause instanceof Error ? cause.message : 'Unable to load requirements.'); }
+    finally { setLoading(false); }
+  }, [request, readOnly]);
+  const filteredRows = useMemo(() => {
+    const term = search.trim().toLowerCase();
+    const field = (row: Requirement) => sort === 'country' ? row.country?.name ?? '' : sort === 'service' ? row.service?.service ?? '' : sort === 'procedure' ? row.procedure?.description ?? '' : sort === 'description' ? toPlainText(row.description) : row.created_at;
+    return allRows.filter((item) => (!countryFilter || item.country_id === countryFilter) && (!serviceFilter || item.service_id === serviceFilter) && (!procedureFilter || item.procedure_id === procedureFilter) && (!term || [item.country?.name, item.service?.service, item.procedure?.description, toPlainText(item.description)].join(' ').toLowerCase().includes(term))).sort((a, b) => field(a).localeCompare(field(b)) * (direction === 'asc' ? 1 : -1));
+  }, [allRows, countryFilter, serviceFilter, procedureFilter, search, sort, direction]);
+  const total = filteredRows.length;
+  const rows = filteredRows.slice((page - 1) * PAGE_SIZE, page * PAGE_SIZE);
+  useEffect(() => { setPage((current) => Math.min(current, Math.max(1, Math.ceil(total / PAGE_SIZE)))); }, [total, PAGE_SIZE]);
+
   useEffect(() => {
     void load();
   }, [load]);
@@ -170,7 +136,7 @@ export default function RequirementsPage() {
     setCountryId(item?.country_id ?? '');
     setServiceId(item?.service_id ?? item?.procedure?.service_id ?? '');
     setProcedureId(item?.procedure_id ?? '');
-    setDescription(item?.description ?? '');
+    setDescription(toPlainText(item?.description));
     setError('');
     setModal(mode);
   };
@@ -180,7 +146,7 @@ export default function RequirementsPage() {
       setError('Service, country, and procedure are required.');
       return;
     }
-    if (plainText(description).trim().length < 3) {
+    if (toPlainText(description).trim().length < 3) {
       setError('Description must be at least 3 characters.');
       return;
     }
@@ -193,16 +159,15 @@ export default function RequirementsPage() {
     try {
       const saved = await request(selected ? `requirements/${selected.id}` : 'requirements', {
         method: selected ? 'PUT' : 'POST',
-        body: JSON.stringify({ country_id: countryId, service_id: serviceId, procedure_id: procedureId, description: safeHtml(description) }),
+        body: JSON.stringify({ country_id: countryId, service_id: serviceId, procedure_id: procedureId, description: toPlainText(description) }),
       }) as Requirement;
       const enrichedSaved = enrichRequirement(saved, services, procedures);
       setNotice(selected ? 'Requirement updated.' : 'Requirement added.');
       setModal(null);
       if (selected) {
-        setRows((current) => current.map((item) => item.id === enrichedSaved.id ? enrichedSaved : item));
+        setAllRows((current) => current.map((item) => item.id === enrichedSaved.id ? enrichedSaved : item));
       } else if (page === 1 && !search && sort === 'created' && direction === 'desc') {
-        setRows((current) => [enrichedSaved, ...current].slice(0, PAGE_SIZE));
-        setTotal((current) => current + 1);
+        setAllRows((current) => [enrichedSaved, ...current]);
       }
       void load();
     } catch (cause) {
@@ -238,6 +203,36 @@ export default function RequirementsPage() {
       setDirection('asc');
     }
     setPage(1);
+  };
+  const transferColumns = [
+    { key: 'id', label: 'ID' }, { key: 'service_id', label: 'Service ID' }, { key: 'country_id', label: 'Country ID' }, { key: 'procedure_id', label: 'Procedure ID' },
+    { key: 'service', label: 'Service' }, { key: 'country', label: 'Country' }, { key: 'procedure', label: 'Procedure' }, { key: 'description', label: 'Description' },
+  ];
+  const exportRows = async () => filteredRows.map((item) => ({ id: item.id, service_id: item.service_id, country_id: item.country_id, procedure_id: item.procedure_id, service: item.service?.service ?? '', country: item.country?.name ?? '', procedure: item.procedure?.description ?? '', description: toPlainText(item.description) }));
+  const validateImport = async (items: Record<string, string>[]) => {
+    const seen = new Set<string>();
+    items.forEach((item, index) => {
+      const row = 'Row ' + (index + 2) + ': ';
+      if (item.id && (!allRows.some((entry) => entry.id === item.id) || seen.has(item.id))) throw Error(row + 'requirement ID is missing or duplicated.');
+      if (item.id) seen.add(item.id);
+      if (!countries.some((entry) => entry.id === item.country_id)) throw Error(row + 'use a valid country_id.');
+      if (!services.some((entry) => entry.id === item.service_id) || !procedures.some((entry) => entry.id === item.procedure_id && entry.service_id === item.service_id)) throw Error(row + 'procedure_id must belong to service_id.');
+      const description = toPlainText(item.description);
+      if (description.length < 3 || description.length > 5000) throw Error(row + 'description must contain 3 to 5000 characters.');
+      const key = [item.country_id, item.procedure_id, description].join('|');
+      if (seen.has(key) || (!item.id && allRows.some((entry) => entry.country_id === item.country_id && entry.procedure_id === item.procedure_id && toPlainText(entry.description) === description))) throw Error(row + 'duplicate requirement; use its existing ID to update it.');
+      seen.add(key);
+    });
+  };
+  const importRows = async (items: Record<string, string>[]) => {
+    let completed = 0;
+    try {
+      for (const item of items) {
+        await request(item.id ? 'requirements/' + item.id : 'requirements', { method: item.id ? 'PUT' : 'POST', body: JSON.stringify({ service_id: item.service_id, country_id: item.country_id, procedure_id: item.procedure_id, description: toPlainText(item.description) }) });
+        completed++;
+      }
+    } catch (cause) { throw Error(completed + ' rows saved. Import stopped at row ' + (completed + 2) + '. ' + (cause instanceof Error ? cause.message : 'Request failed.') + ' Export the current list before retrying to avoid duplicates.'); }
+    finally { await load(); }
   };
   const pages = Math.max(1, Math.ceil(total / PAGE_SIZE));
   const currentPage = Math.min(page, pages);
@@ -275,19 +270,24 @@ export default function RequirementsPage() {
               }}
               placeholder="Search countries or procedures..."
             />
+            <select aria-label="Filter by service" value={serviceFilter} onChange={(e) => { setServiceFilter(e.target.value); setProcedureFilter(''); setPage(1); }}><option value="">All services</option>{services.map((item) => <option key={item.id} value={item.id}>{item.service}</option>)}</select>
+            <select aria-label="Filter by country" value={countryFilter} onChange={(e) => { setCountryFilter(e.target.value); setPage(1); }}><option value="">All countries</option>{countries.map((item) => <option key={item.id} value={item.id}>{item.name}</option>)}</select>
+            <select aria-label="Filter by procedure" value={procedureFilter} onChange={(e) => { setProcedureFilter(e.target.value); setPage(1); }}><option value="">All procedures</option>{procedures.filter((item) => !serviceFilter || item.service_id === serviceFilter).map((item) => <option key={item.id} value={item.id}>{item.description}</option>)}</select>
+            <button type="button" onClick={() => { setSearch(''); setCountryFilter(''); setServiceFilter(''); setProcedureFilter(''); setPage(1); }}>Reset</button>
             <span>{total} requirements</span>
           </div>
+          <div className="data-toolbar"><DataTransfer title="Requirements" columns={transferColumns} getRows={exportRows} disabled={loading || saving} onImport={readOnly ? undefined : importRows} validateImport={readOnly ? undefined : validateImport} /></div>
           <div className="country-table-wrap">
             <table>
               <thead>
                 <tr>
-                  <th>Service</th>
+                  <th><button type="button" className="statement-sort" onClick={() => sortBy('service')}>Service {sort === 'service' ? direction === 'asc' ? '↑' : '↓' : '↕'}</button></th>
                   <th>
                     <button
                       className="statement-sort"
                       onClick={() => sortBy('country')}
                     >
-                      Country ↕
+                      Country {sort === 'country' ? direction === 'asc' ? '↑' : '↓' : '↕'}
                     </button>
                   </th>
                   <th>
@@ -295,7 +295,7 @@ export default function RequirementsPage() {
                       className="statement-sort"
                       onClick={() => sortBy('procedure')}
                     >
-                      Procedure ↕
+                      Procedure {sort === 'procedure' ? direction === 'asc' ? '↑' : '↓' : '↕'}
                     </button>
                   </th>
                   <th>Description</th>
@@ -321,7 +321,7 @@ export default function RequirementsPage() {
                         <b style={{ display: 'block' }}>{item.procedure?.description ?? 'Not linked'}</b>
                         {item.procedure?.detail_text && <small style={{ display: 'block' }}>{item.procedure.detail_text}</small>}
                       </td>
-                      <td className="requirement-description">{plainText(item.description)}</td>
+                      <td className="requirement-description"><div className="requirement-preview">{toPlainText(item.description)}</div></td>
                       <td>
                         <div className="user-actions">
                           <button onClick={() => open('view', item)} data-action="view" data-icon-only="true" title="View"><ActionIcon name="view" /><span className="aipt-action-label">View</span></button>
@@ -367,7 +367,7 @@ export default function RequirementsPage() {
               </h2>
               <button onClick={() => setModal(null)}>×</button>
             </header>
-            {readOnly && selected ? <dl className="requirement-view-details"><dt>Service</dt><dd>{selected.service?.service ?? selected.procedure?.service?.service ?? 'Not linked'}</dd><dt>Country</dt><dd>{selected.country?.name ?? '—'}</dd><dt>Procedure</dt><dd>{selected.procedure?.description ?? 'Not linked'}</dd><dt>Description</dt><dd>{plainText(selected.description)}</dd></dl> : modal === 'delete' ? (
+            {readOnly && selected ? <dl className="requirement-view-details"><dt>Service</dt><dd>{selected.service?.service ?? selected.procedure?.service?.service ?? 'Not linked'}</dd><dt>Country</dt><dd>{selected.country?.name ?? '—'}</dd><dt>Procedure</dt><dd>{selected.procedure?.description ?? 'Not linked'}</dd><dt>Description</dt><dd>{toPlainText(selected.description)}</dd></dl> : modal === 'delete' ? (
               <>
                 <p>Delete this requirement permanently?</p>
                 {error && <p className="country-form-error">{error}</p>}
@@ -437,7 +437,7 @@ export default function RequirementsPage() {
                 </label>
                 <label className="country-label">
                   Description <em>*</em>
-                  <RequirementEditor value={description} onChange={setDescription} disabled={modal === 'view'} />
+                  <textarea className="requirement-editor" value={description} onChange={(event) => setDescription(event.target.value)} readOnly={modal === 'view'} rows={10} maxLength={5000} placeholder="Enter filing requirements as plain text…" />
                 </label>
                 {error && <p className="country-form-error">{error}</p>}
                 {modal !== 'view' && (

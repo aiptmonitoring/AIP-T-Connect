@@ -1,3 +1,4 @@
+import { toPlainText } from '../_shared/plain-text.ts';
 import { createClient } from 'npm:@supabase/supabase-js@2';
 
 const cors = { 'Access-Control-Allow-Origin': '*', 'Access-Control-Allow-Headers': 'authorization, apikey, content-type, x-client-info', 'Access-Control-Allow-Methods': 'GET, POST, PUT, DELETE, OPTIONS' };
@@ -27,29 +28,57 @@ const publicSelect = `id,reference_no,invoice_verification_token,status,vat_rate
 
 const aripoCountries = new Set(['botswana', 'cape verde', 'eswatini', 'gambia', 'lesotho', 'liberia', 'malawi', 'mozambique', 'namibia', 'sao tome and principe', 'sao tome & principe', 'uganda', 'zimbabwe']);
 
+// PostgREST caps a single response; every lookup must read all pages in a stable order.
+async function allRows(query: () => any) {
+  const rows: any[] = [];
+  const size = 500;
+  for (let offset = 0; ; offset += size) {
+    const { data, error } = await query().range(offset, offset + size - 1);
+    if (error) throw error;
+    rows.push(...(data ?? []));
+    if ((data ?? []).length < size) return { data: rows, error: null };
+  }
+}
+
+function feePricing(row: any) {
+  const parse = (value: unknown) => value === null || value === undefined || value === '' ? null : Number(value);
+  const official = parse(row.official_fee);
+  const attorney = parse(row.attorney_fee);
+  const total = parse(row.total_fee);
+  const currency = String(row.currency ?? '').trim().toUpperCase();
+  if (currency !== 'USD') throw Error('The published fee currency must be USD for this quotation.');
+  if (official === null || attorney === null || !Number.isFinite(official) || !Number.isFinite(attorney) || official < 0 || attorney < 0) throw Error('Official and attorney fees must both be provided in the published fee data.');
+  if (total !== null && (!Number.isFinite(total) || total < 0 || money(total) < money(official + attorney))) throw Error('The published total is invalid or lower than the official and attorney fees.');
+  return { official_fee: money(official), attorney_fee: money(attorney), total_fee: total === null ? money(official + attorney) : money(total), currency };
+}
+
+function describeFee(row: any) {
+  try { return { ...feePricing(row), available: true, issue: null }; }
+  catch (cause) { return { official_fee: row.official_fee, attorney_fee: row.attorney_fee, total_fee: row.total_fee, currency: row.currency, available: false, issue: (cause as Error).message }; }
+}
+
 async function loadLookups(db: any, profile: { role: string; client_id?: string | null }) {
-  const [{ data: clients, error: clientsError }, { data: projects, error: projectsError }, { data: countries, error: countriesError }, { data: feeCategories, error: categoriesError }, { data: feeServices, error: feeServicesError }, { data: procedures, error: proceduresError }, { data: requirements, error: requirementsError }, { data: services, error: servicesError }, { data: vatRates, error: vatError }] = await Promise.all([
-    db.from('clients').select('id,assigned_id,company_name,email,address,country_id,status').is('deleted_at', null).order('company_name'),
-    db.from('projects').select('id,client_id,project_name,aipt_ref_no,country_id,service_id,procedure_id,matter_type').is('deleted_at', null).order('project_name'),
-    db.from('countries').select('id,name,abbreviation,flag_url').is('deleted_at', null).order('name'),
-    db.from('fee_categories').select('id,name').in('name', categories as unknown as string[]).is('deleted_at', null).order('display_order'),
-    db.from('fee_services').select('id,name,category_id').is('deleted_at', null).order('name'),
-    db.from('procedures').select('id,description,service_id,services!inner(service)').is('deleted_at', null).order('description'),
-    db.from('requirements').select('id,country_id,procedure_id,description').is('deleted_at', null).order('description'),
-    db.from('services').select('id,service,color').is('deleted_at', null).order('service'),
-    db.from('vat_rates').select('country_id,vat').is('deleted_at', null),
+  const [{ data: clients, error: clientsError }, { data: projects, error: projectsError }, { data: countries, error: countriesError }, { data: feeCategories, error: categoriesError }, { data: procedures, error: proceduresError }, { data: requirements, error: requirementsError }, { data: services, error: servicesError }, { data: vatRates, error: vatError }] = await Promise.all([
+    allRows(() => { let query = db.from('clients').select('id,assigned_id,company_name,email,address,country_id,status').is('deleted_at', null).order('id'); return profile.role === 'client' ? query.eq('id', profile.client_id) : query; }),
+    allRows(() => { let query = db.from('projects').select('id,client_id,project_name,aipt_ref_no,country_id,service_id,procedure_id,matter_type').is('deleted_at', null).order('id'); return profile.role === 'client' ? query.eq('client_id', profile.client_id) : query; }),
+    allRows(() => db.from('countries').select('id,name,abbreviation,flag_url').is('deleted_at', null).order('name').order('id')),
+    allRows(() => db.from('fee_categories').select('id,name').in('name', categories as unknown as string[]).is('deleted_at', null).order('display_order').order('id')),
+    allRows(() => db.from('procedures').select('id,description,service_id,services!inner(service)').is('deleted_at', null).order('description').order('id')),
+    allRows(() => db.from('requirements').select('id,country_id,procedure_id,description').is('deleted_at', null).order('id')),
+    allRows(() => db.from('services').select('id,service,color').is('deleted_at', null).order('service').order('id')),
+    allRows(() => db.from('vat_rates').select('id,country_id,vat').is('deleted_at', null).order('id')),
   ]);
-  const error = [clientsError, projectsError, countriesError, categoriesError, feeServicesError, proceduresError, requirementsError, servicesError, vatError].find(Boolean);
+  const error = [clientsError, projectsError, countriesError, categoriesError, proceduresError, requirementsError, servicesError, vatError].find(Boolean);
   if (error) throw error;
-  const categoryById = new Map((feeCategories ?? []).map((item: any) => [item.id, item.name]));
   const procedureById = new Map((procedures ?? []).map((item: any) => [item.id, item]));
-  const { data: latest } = await db.from('fee_dataset_versions').select('id').eq('status', 'published').order('version_number', { ascending: false }).limit(1).maybeSingle();
+  const { data: latest, error: versionError } = await db.from('fee_dataset_versions').select('id,version_number,published_at').eq('status', 'published').order('version_number', { ascending: false }).limit(1).maybeSingle();
+  if (versionError) throw versionError;
   const { data: feeRows, error: feesError } = latest
-    ? await db.from('fee_values').select('id,country_id,official_fee,attorney_fee,total_fee,fee_services!inner(name),fee_categories!inner(name)').eq('dataset_version_id', latest.id).eq('status', 'active')
+    ? await allRows(() => db.from('fee_values').select('id,country_id,official_fee,attorney_fee,total_fee,currency,fee_services!inner(name),fee_categories!inner(name)').eq('dataset_version_id', latest.id).eq('status', 'active').order('id'))
     : { data: [], error: null };
   if (feesError) throw feesError;
   const { data: claimingPriorityRows, error: claimingPriorityError } = latest
-    ? await db.from('fee_claiming_priority_values').select('country_id,official_fee,attorney_fee,total_fee,currency').eq('dataset_version_id', latest.id)
+    ? await allRows(() => db.from('fee_claiming_priority_values').select('country_id,official_fee,attorney_fee,total_fee,currency').eq('dataset_version_id', latest.id).order('country_id'))
     : { data: [], error: null };
   if (claimingPriorityError) throw claimingPriorityError;
   const stateFeeRows = latest
@@ -64,33 +93,36 @@ async function loadLookups(db: any, profile: { role: string; client_id?: string 
   return {
     role: profile.role,
     current_client_id: profile.client_id ?? null,
-    clients: visibleClients,
+    clients: visibleClients.sort((a: any, b: any) => a.company_name.localeCompare(b.company_name)),
+    fee_dataset: latest,
     services: (services ?? []).map((item: any) => ({ id: item.id, name: item.service, category: '', description: item.service, display_color: item.color })),
     projects: visibleProjects,
     countries: countries ?? [],
     categories: (feeCategories ?? []).filter((item: any) => categories.includes(item.name)),
     procedures: (procedures ?? []).map((item: any) => ({ id: item.id, name: item.description, category: item.services?.service ?? '' })).filter((item: any) => categories.includes(item.category)),
-    requirements: (requirements ?? []).map((item: any) => ({ ...item, procedure_id: item.procedure_id ?? null, procedure: procedureById.get(item.procedure_id)?.description ?? null, service_id: procedureById.get(item.procedure_id)?.service_id ?? null })),
-    fees: (feeRows ?? []).map((item: any) => ({ id: item.id, country_id: item.country_id, category: item.fee_categories?.name, procedure_name: item.fee_services?.name, official_fee: item.official_fee ?? 0, attorney_fee: item.attorney_fee ?? 0, total_fee: item.total_fee ?? 0 })),
-    claiming_priority_fees: (claimingPriorityRows ?? []).map((item: any) => ({ country_id: item.country_id, official_fee: item.official_fee ?? 0, attorney_fee: item.attorney_fee ?? 0, total_fee: item.total_fee ?? 0, currency: item.currency ?? 'USD' })),
-    state_fees: stateFeeRows.map((item: any) => ({ id: item.id, country_id: item.country_id, procedure_name: item.fee_services?.name, official_fee: item.official_fee ?? 0, attorney_fee: item.attorney_fee ?? 0, total_fee: item.total_fee ?? 0 })),
+    requirements: (requirements ?? []).map((item: any) => ({ ...item, description: toPlainText(item.description), procedure_id: item.procedure_id ?? null, procedure: procedureById.get(item.procedure_id)?.description ?? null, service_id: procedureById.get(item.procedure_id)?.service_id ?? null })),
+    fees: (feeRows ?? []).map((item: any) => ({ id: item.id, country_id: item.country_id, category: item.fee_categories?.name, procedure_name: item.fee_services?.name, ...describeFee(item) })),
+    claiming_priority_fees: (claimingPriorityRows ?? []).map((item: any) => ({ country_id: item.country_id, ...describeFee(item) })),
+    state_fees: stateFeeRows.map((item: any) => ({ id: item.id, country_id: item.country_id, procedure_name: item.fee_services?.name, ...describeFee(item) })),
     aripo_country_ids: (countries ?? []).filter((item: any) => aripoCountries.has(String(item.name).trim().toLowerCase())).map((item: any) => item.id),
     vat_rates: vatRates ?? [],
   };
 }
 
-async function resolveItems(db: any, items: any[]) {
+async function resolveItems(db: any, items: any[], expectedVersion?: string) {
   if (!Array.isArray(items) || items.length === 0) throw Error('Add at least one service to the quotation.');
-  const { data: latest } = await db.from('fee_dataset_versions').select('id').eq('status', 'published').order('version_number', { ascending: false }).limit(1).maybeSingle();
+  const { data: latest, error: versionError } = await db.from('fee_dataset_versions').select('id').eq('status', 'published').order('version_number', { ascending: false }).limit(1).maybeSingle();
+  if (versionError) throw versionError;
+  if (expectedVersion && latest?.id !== expectedVersion) throw Error('Published fees changed. Refresh quotations and review the updated fees before saving.');
   if (!latest) throw Error('No published fee data is available. Synchronize the Fees page first.');
-  const { data: procedureRows, error: procedureError } = await db.from('procedures').select('id,description,services!inner(service)').is('deleted_at', null);
+  const { data: procedureRows, error: procedureError } = await allRows(() => db.from('procedures').select('id,description,services!inner(service)').is('deleted_at', null).order('id'));
   if (procedureError) throw procedureError;
   const procedureByKey = new Map((procedureRows ?? []).map((item: any) => [`${item.services?.service}|${item.description}`, item.id]));
   const requestedCategories = [...new Set(items.map((item: any) => categoryOf(item.category)))];
   const { data: serviceRows, error: serviceError } = await db.from('services').select('id,service').in('service', requestedCategories).is('deleted_at', null);
   if (serviceError) throw serviceError;
   if ((serviceRows ?? []).length !== requestedCategories.length) throw Error('The selected service is no longer available.');
-  const { data: vatRates, error: vatError } = await db.from('vat_rates').select('country_id,vat').is('deleted_at', null);
+  const { data: vatRates, error: vatError } = await allRows(() => db.from('vat_rates').select('id,country_id,vat').is('deleted_at', null).order('id'));
   if (vatError) throw vatError;
   const vatByCountry = new Map((vatRates ?? []).map((row: any) => [row.country_id, money(row.vat)]));
   const resolved: any[] = [];
@@ -102,7 +134,10 @@ async function resolveItems(db: any, items: any[]) {
     const { data: fee, error } = await db.from('fee_values').select('id,official_fee,attorney_fee,total_fee,currency,category_id,country_id,fee_services!inner(id,name),fee_categories!inner(name),countries!inner(name)').eq('dataset_version_id', latest.id).eq('status', 'active').eq('country_id', countryId).eq('fee_categories.name', category).eq('fee_services.name', procedureName).maybeSingle();
     if (error) throw error;
     if (!fee) throw Error(`No matching fee found for ${category}, ${procedureName}, and the selected country.`);
-    const quantity = Math.min(1000, Math.max(1, Math.floor(Number(item.quantity) || 1)));
+    if (!procedureByKey.has(`${category}|${procedureName}`)) throw Error('The selected procedure does not belong to the selected service.');
+    const pricing = feePricing(fee);
+    const quantity = Number(item.quantity ?? 1);
+    if (!Number.isInteger(quantity) || quantity < 1 || quantity > 1000) throw Error('Quantity must be a whole number between 1 and 1000.');
     const classNumbers = category === 'Trademark' && Array.isArray(item.class_numbers)
       ? [...new Set(item.class_numbers.map((value: unknown) => Number(value)).filter((value: number) => Number.isInteger(value) && value >= 1 && value <= 45))]
       : [];
@@ -110,37 +145,41 @@ async function resolveItems(db: any, items: any[]) {
     const classMultiplier = Math.max(1, classNumbers.length);
     const classType = classNumbers.length === 1 ? 'Single' : classNumbers.length > 1 ? 'Multi' : null;
     const classCount = classNumbers.length;
-    const total = money(fee.total_fee);
+    const total = pricing.total_fee;
     const claimingPriority = category === 'Trademark' && item.claiming_priority === true;
     let claimingPriorityFee = 0;
     if (claimingPriority) {
-      const { data: priority } = await db.from('fee_claiming_priority_values').select('official_fee,attorney_fee,total_fee').eq('dataset_version_id', latest.id).eq('country_id', countryId).maybeSingle();
+      const { data: priority, error: priorityError } = await db.from('fee_claiming_priority_values').select('official_fee,attorney_fee,total_fee,currency').eq('dataset_version_id', latest.id).eq('country_id', countryId).maybeSingle();
+      if (priorityError) throw priorityError;
       if (!priority) throw Error('Claiming Priority is not available for the selected country.');
-      claimingPriorityFee = money(priority.total_fee ?? Number(priority.official_fee ?? 0) + Number(priority.attorney_fee ?? 0));
+      claimingPriorityFee = feePricing(priority).total_fee;
     }
     const stateCountryIds = category === 'Trademark' && Array.isArray(item.state_country_ids)
       ? [...new Set(item.state_country_ids.filter((value: unknown): value is string => typeof value === 'string'))]
       : [];
     let stateFeeTotal = 0;
     if (stateCountryIds.length) {
-      const { data: stateCountries } = await db.from('countries').select('id,name').in('id', stateCountryIds).is('deleted_at', null);
+      const { data: stateCountries, error: stateCountriesError } = await db.from('countries').select('id,name').in('id', stateCountryIds).is('deleted_at', null);
+      if (stateCountriesError) throw stateCountriesError;
       if ((stateCountries ?? []).length !== stateCountryIds.length || (stateCountries ?? []).some((state: any) => !aripoCountries.has(String(state.name).trim().toLowerCase()))) throw Error('States can only be selected from ARIPO countries.');
-      const { data: stateFees } = await db.from('fee_values').select('country_id,total_fee,official_fee,attorney_fee,fee_services!inner(name),fee_categories!inner(name)').eq('dataset_version_id', latest.id).eq('status', 'active').in('country_id', stateCountryIds).eq('fee_categories.name', 'Trademark').ilike('fee_services.name', '%state%');
+      const { data: stateFees, error: stateFeesError } = await db.from('fee_values').select('country_id,total_fee,official_fee,attorney_fee,currency,fee_services!inner(name),fee_categories!inner(name)').eq('dataset_version_id', latest.id).eq('status', 'active').in('country_id', stateCountryIds).eq('fee_categories.name', 'Trademark').ilike('fee_services.name', '%state%');
+      if (stateFeesError) throw stateFeesError;
       if ((stateFees ?? []).length !== stateCountryIds.length) throw Error('A States fee is not available for every selected ARIPO country.');
-      stateFeeTotal = money((stateFees ?? []).reduce((sum: number, row: any) => sum + Number(row.total_fee ?? Number(row.official_fee ?? 0) + Number(row.attorney_fee ?? 0)), 0));
+      stateFeeTotal = money((stateFees ?? []).reduce((sum: number, row: any) => sum + feePricing(row).total_fee, 0));
     }
     const additional = 0;
     const requirementIds = Array.isArray(item.requirement_ids) ? item.requirement_ids.filter((id: unknown) => typeof id === 'string') : [];
     if (requirementIds.length) {
       const procedureId = procedureByKey.get(`${category}|${procedureName}`);
-      const { data: requirements } = procedureId
+      const { data: requirements, error: requirementsError } = procedureId
         ? await db.from('requirements').select('id,procedure_id').in('id', requirementIds).eq('country_id', countryId).eq('procedure_id', procedureId).is('deleted_at', null)
-        : { data: [] };
+        : { data: [], error: null };
+      if (requirementsError) throw requirementsError;
       if ((requirements ?? []).length !== requirementIds.length) throw Error('A selected requirement does not match the selected procedure and country.');
     }
     const vatRate = vatByCountry.get(countryId) ?? 0;
-    const official = money(fee.official_fee * quantity * classMultiplier);
-    const attorney = money(fee.attorney_fee * quantity * classMultiplier);
+    const official = money(pricing.official_fee * quantity * classMultiplier);
+    const attorney = money(pricing.attorney_fee * quantity * classMultiplier);
     const other = money(Math.max(0, total * quantity * classMultiplier - official - attorney));
     resolved.push({ country_id: countryId, category, procedure_name: procedureName, fee_value_id: fee.id, quantity, class_numbers: classNumbers, class_type: classType, class_count: classCount, additional_fee_per_class: 0, official_fee: official, attorney_fee: attorney, other_fee: other, vat_rate: vatRate, requirement_ids: requirementIds, claiming_priority: claimingPriority, claiming_priority_fee: money(claimingPriorityFee * quantity * classMultiplier), state_country_ids: stateCountryIds, state_fee_total: money(stateFeeTotal * quantity * classMultiplier), vat: attorney * vatRate / 100 });
   }
@@ -200,11 +239,17 @@ Deno.serve(async (request) => {
       const pageSize = Math.min(100, Math.max(1, Number(url.searchParams.get('page_size') ?? 10)));
       const search = (url.searchParams.get('search') ?? '').trim().toLowerCase();
       const status = url.searchParams.get('status');
-      let query = db.from('quotations').select(listSelect).is('deleted_at', null).order('created_at', { ascending: url.searchParams.get('direction') === 'asc' }).order('id');
-      if (profile.role === 'client') query = query.eq('client_id', profile.client_id).eq('status', 'Approved');
-      const { data, error } = await query;
+      const sortFields = ['created_at', 'reference_no', 'grand_total', 'status', 'invoice_date'];
+      const sort = sortFields.includes(url.searchParams.get('sort') ?? '') ? url.searchParams.get('sort')! : 'created_at';
+      const country = url.searchParams.get('country_id');
+      const { data, error } = await allRows(() => {
+        let query = db.from('quotations').select(listSelect).is('deleted_at', null).order(sort, { ascending: url.searchParams.get('direction') === 'asc' }).order('id');
+        if (profile.role === 'client') query = query.eq('client_id', profile.client_id).eq('status', 'Approved');
+        if (status) query = query.eq('status', status);
+        return query;
+      });
       if (error) throw error;
-      const filtered = (data ?? []).filter((item: any) => (!status || item.status === status) && (!search || JSON.stringify(item).toLowerCase().includes(search)));
+      const filtered = (data ?? []).filter((item: any) => (!country || item.quotation_items?.some((row: any) => row.country_id === country)) && (!search || JSON.stringify(item).toLowerCase().includes(search)));
       return json({ data: filtered.slice((page - 1) * pageSize, page * pageSize), total: filtered.length, page, page_size: pageSize });
     }
     if (profile.role !== 'administrator' && !(profile.role === 'client' && request.method === 'POST')) return json({ error: 'Only administrators can manage quotations.' }, 403);
@@ -234,7 +279,7 @@ Deno.serve(async (request) => {
       const body = await request.json();
       const vatable = body.vatable !== false;
       const discount = money(body.discount);
-      const items = await resolveItems(db, body.items);
+      const items = await resolveItems(db, body.items, body.fee_dataset_version_id);
       if (!vatable) items.forEach((item) => { item.vat_rate = 0; });
       const vatRate = items.length ? items[0].vat_rate : 0;
       const summary = totals(items, discount, vatRate);

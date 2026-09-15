@@ -79,7 +79,7 @@ type FeeSyncHistory = {
   id: string;
   status: string;
   started_at: string;
-  completed_at?: string | null;
+  completed_at?: string;
   sheet_progress?: Record<string, 'complete' | 'processing' | 'pending'> | null;
 };
 
@@ -89,7 +89,6 @@ type FeeSyncTabRow = {
   tab: string;
   complete: boolean;
   status: string;
-  runStatus: string;
 };
 
 type IconName = 'filed' | 'accepted' | 'opposition' | 'registered' | 'download' | 'refresh' | 'arrow';
@@ -167,9 +166,7 @@ export default function Overview() {
   const [syncTotal,setSyncTotal]=useState(0);
   const [syncDirection,setSyncDirection]=useState('desc');
   const [syncError,setSyncError]=useState('');
-  const [syncLoading, setSyncLoading] = useState(true);
-  const syncRequest = useRef<{ query: string; id: number } | null>(null);
-  const syncRequestCounter = useRef(0);
+  const syncBusy=useRef(false);
   const [recentSize,setRecentSize]=useState(10);
   const deferredSearch = useDeferredValue(search);
   const requestCounter = useRef(0);
@@ -198,40 +195,18 @@ export default function Overview() {
   useEffect(() => { void loadSummary(); }, [loadSummary, recentSize]);
 
   const loadFeeSyncHistory = useCallback(async () => {
-    const query = new URLSearchParams({ history: 'true', page: String(syncPage), page_size: String(syncSize), direction: syncDirection }).toString();
-    if (syncRequest.current?.query === query) return;
-    const requestId = ++syncRequestCounter.current;
-    syncRequest.current = { query, id: requestId };
-    setSyncLoading(true);
-    setSyncError('');
+    if(syncBusy.current) return;
+    syncBusy.current=true;
     try {
-      const response = await fetchSupabaseFunction('sync-progress?' + query);
-      const body = await response.json();
-      if (!response.ok) throw Error(body.error || 'Unable to load synchronization history.');
-      if (!Array.isArray(body.history) || typeof body.total !== 'number') throw Error('The synchronization history response is incomplete.');
-      const rows: FeeSyncTabRow[] = body.history.flatMap((run: FeeSyncHistory) => {
-        const sheets = Object.entries(run.sheet_progress ?? {});
-        return (sheets.length ? sheets : [['Not recorded', 'unknown']]).map(([tab, state]) => ({
-          id: run.id + '-' + tab,
-          date: run.completed_at || run.started_at,
-          tab,
-          complete: state === 'complete',
-          status: state === 'complete' ? 'Complete' : state === 'processing' ? 'Processing' : state === 'pending' ? 'Pending' : 'Not recorded',
-          runStatus: run.status,
-        }));
-      });
-      if (requestId !== syncRequestCounter.current) return;
-      setFeeSyncRows(rows);
-      setSyncTotal(body.total);
-    } catch (cause) {
-      if (requestId !== syncRequestCounter.current) return;
-      setFeeSyncRows([]);
-      setSyncError(cause instanceof Error ? cause.message : 'Unable to load synchronization history.');
-    } finally {
-      if (syncRequest.current?.id === requestId) syncRequest.current = null;
-      if (requestId === syncRequestCounter.current) setSyncLoading(false);
-    }
-  }, [syncPage, syncSize, syncDirection]);
+      const response=await fetchSupabaseFunction('sync-progress?' + new URLSearchParams({history:'true',rows:'true',page:String(syncPage),page_size:String(syncSize),direction:syncDirection}));
+      const body=await response.json();
+      if(!response.ok) throw Error(body.error || 'Unable to load synchronization history.');
+      setFeeSyncRows(body.rows ?? []);
+      setSyncTotal(body.total ?? 0);
+      setSyncError('');
+    } catch(cause) {setSyncError(cause instanceof Error ? cause.message : 'Unable to load synchronization history.');}
+    finally {syncBusy.current=false;}
+  }, [syncPage,syncSize,syncDirection]);
 
   useEffect(() => { void loadFeeSyncHistory(); }, [loadFeeSyncHistory]);
   useEffect(() => {
@@ -313,22 +288,9 @@ export default function Overview() {
       <BusinessPerformance summary={summary} loading={loading && !summary} />
     </section>
 
-    <section className="overview-panel overview-sync-history" aria-busy={syncLoading}>
-      <header className="overview-panel-header">
-        <div><h2>Fee Sync Updates</h2><p>Recorded worksheet progress and overall result for each synchronization run.</p></div>
-        <button type="button" className="overview-button overview-button-secondary" onClick={() => void loadFeeSyncHistory()} disabled={syncLoading} data-action="refresh" title="Refresh"><ActionIcon name="refresh" /><span className="aipt-action-label">Refresh</span></button>
-      </header>
-      {syncError && <p role="alert">{syncError}</p>}
-      <div className="overview-table-scroll"><table className="overview-table overview-sync-table">
-        <thead><tr><th><button type="button" className="aipt-sort" onClick={() => { setSyncDirection(syncDirection === 'asc' ? 'desc' : 'asc'); setSyncPage(1); }}>Date {syncDirection === 'asc' ? '↑' : '↓'}</button></th><th>Worksheet</th><th>Worksheet status</th><th>Sync result</th></tr></thead>
-        <tbody>{feeSyncRows.length ? feeSyncRows.map((row) => <tr key={row.id}>
-          <td>{formatDate(row.date)}</td><td><b>{row.tab}</b></td>
-          <td><span className={`overview-sync-status ${row.complete ? 'is-complete' : 'is-incomplete'}`}>{row.status}</span></td>
-          <td>{row.runStatus.replace(/_/g, ' ')}</td>
-        </tr>) : <tr><td colSpan={4} className="overview-table-state">{syncLoading ? 'Loading fee synchronization history…' : syncError ? 'Synchronization history could not be loaded.' : 'No fee synchronization history available.'}</td></tr>}</tbody>
-      </table></div>
-      <p>Pagination counts synchronization runs; each run lists its recorded worksheets.</p>
-      <TablePagination page={syncPage} pageSize={syncSize} total={syncTotal} onPageChange={setSyncPage} onPageSizeChange={(size) => { setSyncSize(size); setSyncPage(1); }} loading={syncLoading} />
+    <section className="overview-panel overview-sync-history">
+      <header className="overview-panel-header"><div><h2>Fee Sync Updates</h2><p>Each tab reflects the latest server-side fee synchronization result.</p></div><button type="button" className="overview-button overview-button-secondary" onClick={() => void loadFeeSyncHistory()} data-action="refresh" title="Refresh"><ActionIcon name="refresh" /><span className="aipt-action-label">Refresh</span></button></header>
+      <div className="overview-table-scroll"><table className="overview-table overview-sync-table"><thead><tr><th><button className="aipt-sort" onClick={()=>{setSyncDirection(syncDirection==="asc"?"desc":"asc");setSyncPage(1)}}>Date {syncDirection==="asc"?"?":"?"}</button></th><th>Tab</th><th>Complete</th></tr></thead><tbody>{feeSyncRows.length ? feeSyncRows.map((row) => <tr key={row.id}><td>{formatDate(row.date)}</td><td><b>{row.tab}</b></td><td><span className={`overview-sync-status ${row.complete ? 'is-complete' : 'is-incomplete'}`}>{row.complete ? 'Complete' : row.status}</span></td></tr>) : <tr><td colSpan={3} className="overview-table-state">No fee synchronization history available.</td></tr>}</tbody></table></div>{syncError && <p role="alert">{syncError}</p>}<TablePagination page={syncPage} pageSize={syncSize} total={syncTotal} onPageChange={setSyncPage} onPageSizeChange={setSyncSize} />
     </section>
 
     <section className="overview-panel overview-recent-projects">

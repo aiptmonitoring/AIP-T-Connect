@@ -1,0 +1,9 @@
+{
+  "verified_at": "2026-09-14T14:54:08.208Z",
+  "batch": "client-csv-2026-09-14T14-42-11-999Z",
+  "clients": 745,
+  "audits": 745,
+  "clarivate_country": "U.S. Virgin Islands",
+  "pending": 0,
+  "excluded_malformed_rows": 20
+}

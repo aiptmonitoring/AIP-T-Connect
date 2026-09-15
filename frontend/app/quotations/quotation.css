@@ -323,3 +323,5 @@
 .invoice-dialog .selection-panels{display:grid;grid-template-columns:repeat(12,minmax(0,1fr))}
 .invoice-dialog .selection-panels>.applicable-requirements{grid-column:1/-1;min-width:0;width:100%}
 .invoice-dialog .cart-row-actions{min-width:148px;flex-wrap:nowrap}
+
+.quotation-success{padding:28px;max-width:480px}.quotation-success h2{color:var(--primary-color);font-size:21px}.quotation-success p{margin:14px 0}.quotation-success .modal-actions{display:flex;gap:12px;flex-wrap:wrap}

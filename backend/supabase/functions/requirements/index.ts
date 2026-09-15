@@ -1,3 +1,4 @@
+import { toPlainText } from '../_shared/plain-text.ts';
 import { createClient } from 'npm:@supabase/supabase-js@2';
 const cors = { 'Access-Control-Allow-Origin': '*', 'Access-Control-Allow-Headers': 'authorization, apikey, content-type, x-client-info', 'Access-Control-Allow-Methods': 'GET, POST, PUT, DELETE, OPTIONS' };
 const json = (body: unknown, status = 200) => new Response(JSON.stringify(body), { status, headers: { ...cors, 'Content-Type': 'application/json' } });
@@ -5,6 +6,7 @@ const select = 'id,country_id,procedure_id,description,created_at,updated_at,cou
 
 const normalize = (row: any) => ({
   ...row,
+  description: toPlainText(row.description),
   service_id: row.procedure?.service_id ?? null,
   service: row.procedure?.service ?? null,
 });
@@ -35,8 +37,14 @@ Deno.serve(async (request) => {
       const search = (url.searchParams.get('search') ?? '').trim();
       const sort = url.searchParams.get('sort') ?? 'created';
       const ascending = url.searchParams.get('direction') === 'asc';
-      const result = await db.from('requirements').select(select).is('deleted_at', null);
-      if (result.error) throw result.error;
+      const data: any[] = [];
+      for (let offset = 0; ; offset += 500) {
+        const batch = await db.from('requirements').select(select).is('deleted_at', null).order('id').range(offset, offset + 499);
+        if (batch.error) throw batch.error;
+        data.push(...(batch.data ?? []));
+        if ((batch.data ?? []).length < 500) break;
+      }
+      const result = { data };
       const term = search.toLowerCase();
       const filtered = (result.data ?? []).filter((item) => !term || `${item.procedure?.description ?? ''} ${item.procedure?.detail_text ?? ''} ${item.description} ${item.country?.name ?? ''} ${item.country?.abbreviation ?? ''}`.toLowerCase().includes(term));
       filtered.sort((left, right) => { const a = sort === 'country' ? left.country?.name ?? '' : sort === 'procedure' ? left.procedure?.description ?? left.description : left.created_at; const b = sort === 'country' ? right.country?.name ?? '' : sort === 'procedure' ? right.procedure?.description ?? right.description : right.created_at; return (a > b ? 1 : a < b ? -1 : 0) * (ascending ? 1 : -1); });
@@ -48,7 +56,7 @@ Deno.serve(async (request) => {
       const country_id = typeof body.country_id === 'string' ? body.country_id : '';
       const service_id = typeof body.service_id === 'string' ? body.service_id : '';
       const procedure_id = typeof body.procedure_id === 'string' ? body.procedure_id : '';
-      const description = typeof body.description === 'string' ? body.description.trim().slice(0, 5000) : '';
+      const description = typeof body.description === 'string' ? toPlainText(body.description).slice(0, 5000) : '';
       if (!country_id || !service_id || !procedure_id || description.length < 3) return json({ error: 'Service, country, procedure, and a description of at least 3 characters are required.' }, 400);
       const [{ data: country }, { data: procedure }] = await Promise.all([
         db.from('countries').select('id').eq('id', country_id).is('deleted_at', null).maybeSingle(),
