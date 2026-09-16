@@ -1,0 +1,55 @@
+.quotation-document{background:#edf4f6;padding:24px;min-height:100vh;color:#00517f;font-family:Arial,Helvetica,sans-serif}
+.quotation-document *{box-sizing:border-box}
+.quotation-sheet{width:1122px;max-width:none;margin:0 auto;padding:34px 27px 68px;background:white;font-size:22px;line-height:1.3;box-shadow:0 8px 32px #003b501a}
+.quotation-heading{display:grid;grid-template-columns:1fr 564px;align-items:center;gap:20px;border-bottom:7px solid #00a5bd;padding-bottom:12px;margin-bottom:12px}
+.quotation-heading h1{font-family:Arial,Helvetica,sans-serif;font-size:78px;letter-spacing:-4px;font-weight:900;line-height:1;margin:0;color:#009fb7}
+.quotation-verification{display:flex;gap:24px;background:#00a5bf;color:#fff;border-radius:8px;padding:14px 16px;min-height:149px;align-items:flex-start}
+.quotation-verification h2{font-size:26px;line-height:1.1;white-space:nowrap;margin:0 0 7px;font-weight:800;color:#fff}
+.quotation-verification p{font-size:20px;line-height:1.2;margin:0;color:#fff}
+.quotation-qr{flex:none;width:125px;height:125px;background:#fff;border-radius:5px;padding:4px;display:grid;place-items:center;color:#00517f;font-size:12px}
+.quotation-qr img{display:block;width:117px;height:117px}
+.quotation-parties{display:grid;grid-template-columns:minmax(0,1fr) 530px;gap:8px;margin-bottom:21px}
+.quotation-sender h2{font-family:'Arial Narrow',Arial,sans-serif;font-size:32px;letter-spacing:-1px;margin:0 0 6px;font-weight:800;white-space:nowrap}
+.quotation-sender p{margin:0 0 9px;line-height:1.28;font-size:23px}
+.quotation-tab{display:table;position:relative;background:#00a5bd;color:white;border-radius:13px 24px 0 12px;padding:4px 43px 4px 12px;margin:0;font-size:28px;line-height:1.3;font-weight:800;clip-path:polygon(0 0,90% 0,100% 100%,0 100%)}
+.quotation-recipient{margin:18px 0 0;text-align:left}
+.quotation-recipient p{font-size:20px;line-height:1.35;margin:0 0 5px;white-space:pre-wrap;overflow-wrap:anywhere}
+.quotation-meta{background:#e3f7fc;border-radius:8px;padding:18px 16px;margin:11px 0 0;align-self:start;min-height:198px;font-size:23px}
+.quotation-meta>div{display:grid;grid-template-columns:190px minmax(0,1fr);gap:12px;padding:4px 0 5px}
+.quotation-meta dt{text-align:left}
+.quotation-meta dd{text-align:left;margin:0;overflow-wrap:anywhere}
+.quotation-sheet table{width:100%;border-collapse:separate;border-spacing:0;table-layout:fixed;border:1px solid #83e5f5;border-radius:10px;overflow:hidden}
+.quotation-sheet th{background:#16b5cc;color:#fff;font-weight:700;font-size:22px;text-align:left;padding:8px 20px;line-height:1.2}
+.quotation-sheet td{background:#e6f8fc;color:#00517f;font-size:20px;padding:16px 20px;line-height:1.25;overflow-wrap:anywhere;white-space:pre-wrap}
+.quotation-sheet th,.quotation-sheet td{border-right:1px solid #83e5f5;border-bottom:1px solid #83e5f5}
+.quotation-sheet th:last-child,.quotation-sheet td:last-child{border-right:0}
+.quotation-sheet tbody tr:last-child td{border-bottom:0}
+.quotation-fees{margin-top:22px}
+.quotation-fees th{background:#00a8c2;height:102px;text-align:center;padding:12px 9px;font-size:20px}
+.quotation-fees td{text-align:center;padding:15px 8px;background:#dcf6fc}
+.quotation-fees th:first-child,.quotation-fees td:first-child{text-align:left;padding-left:20px}
+.quotation-fees small{display:block;font-size:18px;font-weight:400;line-height:1.25;margin-top:5px}
+.quotation-fees td small{font-size:13px}
+.quotation-totals{width:440px;max-width:100%;margin:10px 0 14px auto;font-size:22px;break-inside:avoid}
+.quotation-totals>div{display:flex;justify-content:space-between;align-items:center;gap:14px;padding:10px;border-bottom:1px solid #83e5f5}
+.quotation-totals strong{white-space:nowrap;font-size:24px}
+.quotation-totals .quotation-due{background:linear-gradient(110deg,#c3f3fc,#e0f8fc);border:1px solid #83e5f5;border-radius:18px;color:#0084a0;font-weight:800;padding:8px 12px;margin-top:2px;font-size:25px;letter-spacing:-1px;flex-wrap:wrap}
+.quotation-due strong{font-size:25px;letter-spacing:-1px;margin-left:auto}
+/* Display only the office artwork from the supplied reference, at its original aspect ratio. */
+.quotation-offices{position:relative;overflow:hidden;aspect-ratio:1122 / 294;margin:14px -25px 0;break-inside:avoid}
+.quotation-offices img{position:absolute;display:block;width:100%;max-width:none;height:auto;left:0;top:0;transform:translateY(-74.393723%)}
+.quotation-document .invoice-document-actions{max-width:1122px}
+.quotation-document .invoice-document-actions button:disabled{opacity:.5;cursor:wait}
+@media screen and (max-width:1170px){.quotation-document{overflow-x:auto}.quotation-sheet{margin:0}}
+@page{size:A4 portrait;margin:7mm 5mm}
+@media print{
+  html,body{margin:0!important;padding:0!important;background:white!important}
+  .quotation-document{padding:0;background:white;min-height:0}
+  .quotation-document .invoice-document-actions{display:none}
+  .quotation-sheet{zoom:.6737;margin:0;padding:0 27px 0;box-shadow:none}
+  .quotation-sheet,.quotation-sheet *{-webkit-print-color-adjust:exact;print-color-adjust:exact}
+  .quotation-sheet thead{display:table-header-group}
+  .quotation-sheet tr,.quotation-heading,.quotation-parties,.quotation-offices{break-inside:avoid}
+  .quotation-tab{break-after:avoid}
+}
+.quotation-ending{break-inside:avoid}
