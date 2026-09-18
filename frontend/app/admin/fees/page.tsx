@@ -10,7 +10,7 @@ import SyncTestPage from './test-page';
 import { type FeeRecord } from './export-utils';
 import './styles.css';
 
-type Category = 'Trademark' | 'Patent' | 'Design' | 'Copyright' | 'Classes';
+type Category = 'Trademark' | 'Patent' | 'Design' | 'Copyright' | 'Others' | 'Up to 5 classes' | 'Multi-class' | 'Up to 3 classes' | 'Classes';
 type SyncStatus = 'idle' | 'queued' | 'starting' | 'running' | 'validating' | 'reconciling' | 'publishing' | 'completed' | 'failed' | 'interrupted' | 'recovering' | 'cancelled';
 
 type SyncRun = {
@@ -54,7 +54,7 @@ type SyncHistory = SyncRun & {
   duration?: number;
 };
 
-const CATEGORIES: Category[] = ['Trademark', 'Patent', 'Design', 'Copyright', 'Classes'];
+const CATEGORIES: Category[] = ['Trademark', 'Patent', 'Design', 'Copyright', 'Others', 'Up to 5 classes', 'Multi-class', 'Up to 3 classes', 'Classes'];
 const SYNC_POLL_INTERVAL = 2000;
 
 export default function AdminFeesPage() {
@@ -164,7 +164,7 @@ export default function AdminFeesPage() {
           status: 'queued',
           progress: { overall_percent: 0, processed_rows: 0, total_rows: 0 },
           statistics: { inserted: 0, updated: 0, skipped: 0, errors: 0 },
-          sheet_progress: { Trademark: 'pending', Patent: 'pending', Design: 'pending', Copyright: 'pending', Classes: 'pending' },
+          sheet_progress: { Trademark: 'pending', Patent: 'pending', Design: 'pending', Copyright: 'pending', Others: 'pending', 'Up to 5 classes': 'pending', 'Multi-class': 'pending', 'Up to 3 classes': 'pending', Classes: 'pending' },
         }),
         status: 'queued',
         current_operation: 'Starting synchronization on the server',
@@ -193,7 +193,7 @@ export default function AdminFeesPage() {
           status: 'queued',
           progress: { overall_percent: 0, processed_rows: 0, total_rows: 0 },
           statistics: { inserted: 0, updated: 0, skipped: 0, errors: 0 },
-          sheet_progress: { Trademark: 'pending', Patent: 'pending', Design: 'pending', Copyright: 'pending', Classes: 'pending' },
+          sheet_progress: { Trademark: 'pending', Patent: 'pending', Design: 'pending', Copyright: 'pending', Others: 'pending', 'Up to 5 classes': 'pending', 'Multi-class': 'pending', 'Up to 3 classes': 'pending', Classes: 'pending' },
         }),
         status: 'queued',
         current_operation: data.message || 'Sync queued on the server',

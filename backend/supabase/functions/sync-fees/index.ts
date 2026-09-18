@@ -92,7 +92,13 @@ async function readGoogleSheet(
   accessToken: string,
   sheetName: string
 ): Promise<string[][]> {
-  const configuredRange = (Deno.env.get(sheetName === 'Classes' ? 'GOOGLE_SHEETS_CLASSES_RANGE' : 'GOOGLE_SHEETS_RANGE') || '').trim();
+  const sheetRangeEnvironment: Record<string, string> = {
+    Classes: 'GOOGLE_SHEETS_CLASSES_RANGE',
+    'Up to 5 classes': 'GOOGLE_SHEETS_UP_TO_5_CLASSES_RANGE',
+    'Multi-class': 'GOOGLE_SHEETS_MULTI_CLASS_RANGE',
+    'Up to 3 classes': 'GOOGLE_SHEETS_UP_TO_3_CLASSES_RANGE',
+  };
+  const configuredRange = (Deno.env.get(sheetRangeEnvironment[sheetName] || 'GOOGLE_SHEETS_RANGE') || '').trim();
   const configuredRanges = configuredRange.split(',').map((value) => value.trim()).filter(Boolean);
   const matchingRange = configuredRanges.find((value) => value.split('!')[0].trim().toLowerCase() === sheetName.toLowerCase());
   const defaultRange = matchingRange || (configuredRanges.length === 1 && configuredRanges[0].split('!')[0].trim().toLowerCase() === sheetName.toLowerCase() ? configuredRanges[0] : `${sheetName}!A:ZZ`);
@@ -329,7 +335,8 @@ async function saveCheckpoint(
   if (error) throw new Error(`Failed to save sync checkpoint: ${error.message}`);
 }
 
-const REQUIRED_SHEETS = ['Trademark', 'Patent', 'Design', 'Copyright', 'Others'];
+const REQUIRED_SHEETS = ['Trademark', 'Patent', 'Design', 'Copyright', 'Others', 'Up to 5 classes', 'Multi-class', 'Up to 3 classes'];
+const OPTIONAL_CLASS_MATRIX_SHEETS = new Set(['Up to 5 classes', 'Multi-class', 'Up to 3 classes']);
 const CLASS_SHEET = 'Classes';
 const REQUIRED_CLASS_COUNT = 45;
 const VALID_CURRENCIES = new Set(['USD', 'EUR', 'GBP', 'CHF', 'JPY', 'CNY', 'CAD', 'AUD', 'AED', 'INR', 'ZAR']);
@@ -340,6 +347,9 @@ const DEFAULT_CATEGORIES = [
   { name: 'Design', is_primary: true, display_order: 3 },
   { name: 'Copyright', is_primary: true, display_order: 4 },
   { name: 'Others', is_primary: true, display_order: 5 },
+  { name: 'Up to 5 classes', is_primary: true, display_order: 6 },
+  { name: 'Multi-class', is_primary: true, display_order: 7 },
+  { name: 'Up to 3 classes', is_primary: true, display_order: 8 },
 ];
 
 async function ensureDefaultCategories(db: any) {
@@ -377,7 +387,7 @@ function validateImportedSheets(
       errors.push({ sheet: sheetName, row: 0, type: 'missing_sheet_or_header', message: `Required sheet "${sheetName}" is missing or has no recognizable headers.` });
       continue;
     }
-    if (result.records.length === 0) {
+    if (result.records.length === 0 && !OPTIONAL_CLASS_MATRIX_SHEETS.has(sheetName)) {
       errors.push({ sheet: sheetName, row: 0, type: 'empty_sheet', message: `Required sheet "${sheetName}" contains no valid fee records.` });
     }
     sourceRecordCount += result.records.length;
@@ -388,6 +398,9 @@ function validateImportedSheets(
       }
     }
     for (const record of result.records) {
+      // Defensive final normalization: source bytes can be mojibake before the importer sees them.
+      const countrySignature = record.country.toLowerCase().replace(/[^a-z]/g, '');
+      if (/^s.*tom.*pr.*ncipe$/.test(countrySignature)) record.country = 'Sao Tome and Principe';
       if (!countryNames.has(record.country.toLowerCase().replace(/[^a-z0-9]+/g, ' ').trim())) {
         invalidRecordCount += 1;
         errors.push({ sheet: sheetName, row: record.source_row, type: 'unknown_country', message: `Country "${record.country}" is not present in the countries table.` });
@@ -748,7 +761,10 @@ Deno.serve(async (request: Request) => {
       for (const issue of validation.errors.slice(0, 100)) {
         await recordSyncError(db, syncRunId, issue.type, issue.message, false, { sheet_name: issue.sheet, source_row: issue.row || undefined });
       }
-      throw new Error(`Validation failed with ${validation.errors.length} critical issue(s); previous published data remains active.`);
+      const errorPreview = validation.errors.slice(0, 10)
+        .map((issue) => `${issue.sheet}${issue.row ? ` row ${issue.row}` : ''}: ${issue.message}`)
+        .join(' | ');
+      throw new Error(`Validation failed with ${validation.errors.length} critical issue(s); previous published data remains active. ${errorPreview}`);
     }
 
     await logSyncEvent(db, syncRunId, 'VALIDATION_COMPLETED', 'Imported fee data passed validation', {
@@ -952,12 +968,22 @@ Deno.serve(async (request: Request) => {
         })
         .filter((r) => r !== null) as any[];
 
-      if (mappedRecords.length > 0) {
+      // Source aliases can resolve to one canonical country after parsing. Deduplicate
+      // using the database conflict key so a PostgreSQL batch upsert receives each row once.
+      const uniqueMappedRecords = Array.from(
+        new Map(mappedRecords.map((record) => [
+          `${record.dataset_version_id}:${record.category_id}:${record.country_id}:${record.service_id}`,
+          record,
+        ])).values()
+      );
+      skippedCount += mappedRecords.length - uniqueMappedRecords.length;
+
+      if (uniqueMappedRecords.length > 0) {
         await withRetry(
           async () => {
             const { error: upsertError } = await db
               .from('fee_values')
-              .upsert(mappedRecords, { onConflict: 'dataset_version_id,category_id,country_id,service_id' });
+              .upsert(uniqueMappedRecords, { onConflict: 'dataset_version_id,category_id,country_id,service_id' });
             if (upsertError) throw new Error(upsertError.message);
           },
           async (error, attempt) => {
@@ -972,7 +998,7 @@ Deno.serve(async (request: Request) => {
             });
           }
         );
-        insertedCount += mappedRecords.length;
+        insertedCount += uniqueMappedRecords.length;
       }
 
       await updateSyncRunProgress(db, syncRunId, {
@@ -1008,6 +1034,14 @@ Deno.serve(async (request: Request) => {
       percentage: 97,
     });
 
+    // Reconcile against the same identity enforced by fee_values. Distinct source
+    // labels may legitimately normalize to one canonical country and class/service.
+    const expectedStagedRecordCount = new Set(allRecords.map((record) => [
+      record.category.toLowerCase().trim(),
+      record.country.toLowerCase().replace(/[^a-z0-9]+/g, ' ').trim(),
+      record.service.toLowerCase().trim(),
+    ].join('::'))).size;
+    const collapsedSourceDuplicates = validation.validRecordCount - expectedStagedRecordCount;
     const { count: stagedCount, error: stagedCountError } = await db
       .from('fee_values')
       .select('id', { count: 'exact', head: true })
@@ -1021,13 +1055,15 @@ Deno.serve(async (request: Request) => {
     const reconciliation = {
       source_record_count: validation.sourceRecordCount,
       valid_record_count: validation.validRecordCount,
+      expected_staged_record_count: expectedStagedRecordCount,
+      collapsed_source_duplicates: collapsedSourceDuplicates,
       staged_record_count: stagedCount || 0,
       inserted_count: insertedCount,
       skipped_count: skippedCount,
       new_count: 0,
       unchanged_count: 0,
       deleted_count: 0,
-      mismatch: (stagedCount || 0) !== validation.validRecordCount || skippedCount > 0,
+      mismatch: (stagedCount || 0) !== expectedStagedRecordCount,
     };
 
     if (previousPublishedVersionId) {
@@ -1056,7 +1092,7 @@ Deno.serve(async (request: Request) => {
     }).eq('id', datasetVersionId);
 
     if (reconciliation.mismatch) {
-      throw new Error(`Reconciliation failed: source has ${validation.validRecordCount} valid record(s), staged dataset has ${stagedCount || 0}; previous published data remains active.`);
+      throw new Error(`Reconciliation failed: expected ${expectedStagedRecordCount} canonical fee record(s) after ${collapsedSourceDuplicates} source duplicate(s) collapsed, staged dataset has ${stagedCount || 0}; previous published data remains active.`);
     }
     await logSyncEvent(db, syncRunId, 'RECONCILIATION_COMPLETED', 'Staged records passed reconciliation', reconciliation);
 

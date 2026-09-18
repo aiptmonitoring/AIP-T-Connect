@@ -23,8 +23,17 @@ async function context(request: Request) {
   return { db, user, profile };
 }
 
-const listSelect = `id,reference_no,invoice_verification_token,status,vat_rate,vatable,discount,currency,client_matter_ref,invoice_date,subject,total_official_fee,total_attorney_fee,total_other_fee,total_vat,grand_total,created_at,updated_at,client:clients(id,company_name,email,address,country_id),project:projects(id,project_name,aipt_ref_no),primary_country:countries(id,name,abbreviation,flag_url),quotation_items(id,country_id,category,procedure_name,quantity,class_numbers,class_type,class_count,additional_fee_per_class,official_fee,attorney_fee,other_fee,claiming_priority,claiming_priority_fee,state_country_ids,state_fee_total,vat_rate,requirement_ids,country:countries(id,name,abbreviation,flag_url))`;
-const publicSelect = `id,reference_no,invoice_verification_token,status,vat_rate,vatable,discount,currency,client_matter_ref,invoice_date,subject,total_official_fee,total_attorney_fee,total_other_fee,total_vat,grand_total,client:clients(company_name,address),quotation_items(id,country_id,category,procedure_name,quantity,class_numbers,class_type,class_count,additional_fee_per_class,official_fee,attorney_fee,other_fee,claiming_priority,claiming_priority_fee,state_country_ids,state_fee_total,vat_rate,requirement_ids,country:countries(name,abbreviation))`;
+const listSelect = `id,reference_no,invoice_verification_token,status,approved_at,vat_rate,vatable,discount,currency,client_matter_ref,invoice_date,subject,total_official_fee,total_attorney_fee,total_other_fee,total_vat,grand_total,created_at,updated_at,client:clients(id,company_name,email,address,country_id),project:projects(id,project_name,aipt_ref_no),primary_country:countries(id,name,abbreviation,flag_url),quotation_items(id,country_id,category,procedure_name,quantity,class_numbers,class_type,class_count,additional_fee_per_class,official_fee,attorney_fee,other_fee,claiming_priority,claiming_priority_fee,state_country_ids,state_fee_total,vat_rate,requirement_ids,country:countries(id,name,abbreviation,flag_url))`;
+const publicSelect = `id,reference_no,invoice_verification_token,status,approved_at,vat_rate,vatable,discount,currency,client_matter_ref,invoice_date,subject,total_official_fee,total_attorney_fee,total_other_fee,total_vat,grand_total,client:clients(company_name,address),quotation_items(id,country_id,category,procedure_name,quantity,class_numbers,class_type,class_count,additional_fee_per_class,official_fee,attorney_fee,other_fee,claiming_priority,claiming_priority_fee,state_country_ids,state_fee_total,vat_rate,requirement_ids,country:countries(name,abbreviation))`;
+
+// Validity is anchored to the saved administrator approval, never the PDF generation date.
+function withQuotationValidity<T extends { status?: string; approved_at?: string | null }>(quotation: T) {
+  const approvedAt = quotation.approved_at ? new Date(quotation.approved_at) : null;
+  const validUntil = quotation.status === 'Approved' && approvedAt && Number.isFinite(approvedAt.getTime())
+    ? new Date(approvedAt.getTime() + 30 * 24 * 60 * 60 * 1000).toISOString()
+    : null;
+  return { ...quotation, valid_until: validUntil };
+}
 
 const aripoCountries = new Set(['botswana', 'cape verde', 'eswatini', 'gambia', 'lesotho', 'liberia', 'malawi', 'mozambique', 'namibia', 'sao tome and principe', 'sao tome & principe', 'uganda', 'zimbabwe']);
 
@@ -208,7 +217,7 @@ Deno.serve(async (request) => {
       const { data, error } = await lookup.eq('status', 'Approved').is('deleted_at', null).maybeSingle();
       if (error) throw error;
       if (!data) return json({ error: 'Invoice verification record not found.' }, 404);
-      return json(data);
+      return json(withQuotationValidity(data));
     }
     const { db, user, profile } = await context(request);
     const url = new URL(request.url);
@@ -250,7 +259,7 @@ Deno.serve(async (request) => {
       });
       if (error) throw error;
       const filtered = (data ?? []).filter((item: any) => (!country || item.quotation_items?.some((row: any) => row.country_id === country)) && (!search || JSON.stringify(item).toLowerCase().includes(search)));
-      return json({ data: filtered.slice((page - 1) * pageSize, page * pageSize), total: filtered.length, page, page_size: pageSize });
+      return json({ data: filtered.slice((page - 1) * pageSize, page * pageSize).map(withQuotationValidity), total: filtered.length, page, page_size: pageSize });
     }
     if (profile.role !== 'administrator' && !(profile.role === 'client' && request.method === 'POST')) return json({ error: 'Only administrators can manage quotations.' }, 403);
     if (request.method === 'POST' && isApproval) {
@@ -259,9 +268,10 @@ Deno.serve(async (request) => {
       const { data: existing } = await db.from('quotations').select('id,status').eq('id', id).is('deleted_at', null).maybeSingle();
       if (!existing) return json({ error: 'Quotation not found.' }, 404);
       if (existing.status !== 'Pending Approval') throw Error('Only pending quotations can be approved.');
-      const result = await db.from('quotations').update({ status: 'Approved', approved_by: user.id, approved_at: new Date().toISOString() }).eq('id', id).select(listSelect).single();
+      const result = await db.from('quotations').update({ status: 'Approved', approved_by: user.id, approved_at: new Date().toISOString() }).eq('id', id).eq('status', 'Pending Approval').is('deleted_at', null).select(listSelect).maybeSingle();
       if (result.error) throw result.error;
-      return json(result.data);
+      if (!result.data) return json({ error: 'Quotation status changed. Refresh and try again.' }, 409);
+      return json(withQuotationValidity(result.data));
     }
     if (request.method === 'POST' && last === 'cancel') {
       if (!id) throw Error('Quotation id is required.');
@@ -273,7 +283,8 @@ Deno.serve(async (request) => {
       if (['Approved', 'Posted', 'Cancelled'].includes(existing.status)) throw Error('This quotation cannot be cancelled.');
       const result = await db.from('quotations').update({ status: 'Cancelled' }).eq('id', id).select(listSelect).single();
       if (result.error) throw result.error;
-      return json(result.data);
+      if (!result.data) return json({ error: 'Quotation status changed. Refresh and try again.' }, 409);
+      return json(withQuotationValidity(result.data));
     }
     if (request.method === 'POST' || request.method === 'PUT') {
       const body = await request.json();

@@ -66,7 +66,13 @@ function normalized(value: string): string {
 export function canonicalCountry(value: string): string {
   const rawName = cell(value);
   const baseName = rawName.replace(/\s*\([^)]*\)\s*$/, '').trim();
-  const cleanedName = baseName.replace(/[–—-]+$/, '').trim();
+  // Sheets label some jurisdictions by office/territory (for example Iraq – (Baghdad)).
+  // Match the canonical country after removing the annotation and any Unicode dash.
+  const cleanedName = baseName.replace(/[\s\u2013\u2014-]+$/, '').trim();
+  // Accept the published spelling plus legacy mojibake variants from CSV/Sheets exports.
+  // Comparing the ASCII signature handles bad UTF-8 without changing other country names.
+  const countrySignature = rawName.toLowerCase().replace(/[^a-z]/g, '');
+  if (/^s.*tom.*pr.*ncipe$/.test(countrySignature)) return 'Sao Tome and Principe';
   const aliases: Record<string, string> = {
     'Bonaire, Sint Eustatius and Saba': 'Bonaire',
     'Brunei Darussalam': 'Brunei',
@@ -399,6 +405,7 @@ export function importSheet(sheetName: string, rows: string[][]): SheetImportRes
       const explicitTotal = parseAmount(totalText);
       const hasValue = official !== undefined || attorney !== undefined || explicitTotal !== undefined;
       if (!hasValue) continue;
+
       if ([officialText, attorneyText, totalText].some((value) => {
         const text = cell(value);
         return text && !/^(?:[-–—]+|n\/?a|na|not applicable)$/i.test(text) && parseAmount(text) === undefined && !detectCurrency(text);

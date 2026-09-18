@@ -8,6 +8,7 @@ import { getSupabaseBrowserClient } from "../../src/lib/supabase/browser";
 import { createApplicationTimelineReport } from "../../src/lib/application-timeline-report";
 import InviteClientUserModal from "../../src/components/InviteClientUserModal";
 import ClientDataActions from "../../src/components/ClientDataActions";
+import { BulkClient, collectAllClients, deleteClientBatch } from "../../src/lib/client-bulk-delete";
 
 type Country = {
   id: string;
@@ -349,6 +350,15 @@ export default function ClientsPage() {
   const [deletingClient, setDeletingClient] = useState<Client | null>(null);
   const [deleteError, setDeleteError] = useState("");
   const [deleting, setDeleting] = useState(false);
+  const [bulkDeleteOpen, setBulkDeleteOpen] = useState(false);
+  const [bulkClients, setBulkClients] = useState<BulkClient[]>([]);
+  const [bulkPreparing, setBulkPreparing] = useState(false);
+  const [bulkDeleting, setBulkDeleting] = useState(false);
+  const [bulkConfirmation, setBulkConfirmation] = useState("");
+  const [bulkError, setBulkError] = useState("");
+  const [bulkDeleted, setBulkDeleted] = useState(0);
+  const [bulkFinished, setBulkFinished] = useState(false);
+  const bulkDeleteLock = useRef(false);
   const [relatedClient, setRelatedClient] = useState<Client | null>(null);
   const [relatedMatters, setRelatedMatters] = useState<Matter[]>([]);
   const [matterPage, setMatterPage] = useState(1);
@@ -535,17 +545,21 @@ export default function ClientsPage() {
   useEffect(() => {
     const closeOnEscape = (event: KeyboardEvent) => {
       if (event.key !== "Escape") return;
+      if (bulkDeleteOpen) {
+        if (!bulkPreparing && !bulkDeleteLock.current) setBulkDeleteOpen(false);
+        return;
+      }
       if (deletingTimeline) setDeletingTimeline(null);
       else if (timelineMatter && !savingTimeline) { setTimelineMatter(null); setTimelineEntries([]); setEditingTimeline(null); setTimelineFiles([]); }
       else if (matterModalMode && !generatingTimelineReport) { viewTimelineRequest.current += 1; setMatterModalMode(null); setEditingMatter(null); setViewTimelineEntries([]); setViewTimelineError(""); }
       else if (deletingMatter) setDeletingMatter(null);
-      else if (deletingClient) setDeletingClient(null);
+      else if (deletingClient && !deleting) setDeletingClient(null);
       else if (relatedClient) setRelatedClient(null);
       else if (clientModalMode) setClientModalMode(null);
     };
     window.addEventListener("keydown", closeOnEscape);
     return () => window.removeEventListener("keydown", closeOnEscape);
-  }, [clientModalMode, deletingClient, deletingMatter, deletingTimeline, generatingTimelineReport, matterModalMode, relatedClient, savingTimeline, timelineMatter]);
+  }, [bulkDeleteOpen, bulkPreparing, deleting, clientModalMode, deletingClient, deletingMatter, deletingTimeline, generatingTimelineReport, matterModalMode, relatedClient, savingTimeline, timelineMatter]);
 
   const openClientModal = (mode: Exclude<ClientModalMode, null>, client?: Client) => {
     setClientFormError("");
@@ -710,6 +724,27 @@ export default function ClientsPage() {
       setDeleteError(cause instanceof Error ? cause.message : "Unable to delete this client.");
     } finally {
       setDeleting(false);
+    }
+  };
+
+  const prepareDeleteAllClients = async () => {
+    setBulkDeleteOpen(true); setBulkPreparing(true); setBulkClients([]); setBulkConfirmation(""); setBulkError(""); setBulkDeleted(0); setBulkFinished(false);
+    try {
+      setBulkClients(await collectAllClients((page) => request<ListResponse<Client>>("clients", `?page=${page}&page_size=100&sort=assigned_id&direction=asc`)));
+    } catch (cause) { setBulkError(cause instanceof Error ? cause.message : "Unable to load all clients."); }
+    finally { setBulkPreparing(false); }
+  };
+
+  const deleteAllClients = async () => {
+    if (bulkDeleteLock.current || bulkPreparing || bulkFinished || !bulkClients.length || bulkConfirmation !== "DELETE ALL CLIENTS") return;
+    bulkDeleteLock.current = true; setBulkDeleting(true); setBulkError(""); setNotice("");
+    try {
+      const result = await deleteClientBatch(bulkClients, (id) => request<null>("clients", `/${id}`, { method: "DELETE" }), setBulkDeleted);
+      setBulkError(result.error);
+      setNotice(`${result.deleted} of ${bulkClients.length} clients deleted.${result.error ? " Deletion stopped; review the remaining clients." : ""}`);
+    } finally {
+      setBulkFinished(true); setBulkDeleting(false); bulkDeleteLock.current = false;
+      setClientPage(1); setClientRefreshKey((value) => value + 1);
     }
   };
 
@@ -911,7 +946,7 @@ export default function ClientsPage() {
 
         <div className="clients-heading">
           <div><h1>Clients</h1><p>Manage client records and their intellectual property applications.</p></div>
-          <div className="clients-actions"><ClientDataActions search={search} onComplete={setNotice} onError={setPageError} onRefresh={() => setClientRefreshKey((value) => value + 1)} /><button type="button" className="invite-client-user" onClick={() => setInviteClientUserOpen(true)}>Invite Client User</button><button type="button" className="client-refresh" onClick={() => void loadPageData()} disabled={loading} data-action="refresh" title="Refresh"><ActionIcon name="refresh" /><span className="aipt-action-label">Refresh</span></button><button className="add-client" type="button" onClick={() => openClientModal("add")} data-action="add" title="Add New Client"><ActionIcon name="add" /><span className="aipt-action-label">Add New Client</span></button></div>
+          <div className="clients-actions"><button type="button" className="danger" data-action="delete" onClick={() => void prepareDeleteAllClients()} disabled={loading || deleting || bulkPreparing || bulkDeleting}><ActionIcon name="delete" /><span className="aipt-action-label">Delete All Clients</span></button><ClientDataActions search={search} onComplete={setNotice} onError={setPageError} onRefresh={() => setClientRefreshKey((value) => value + 1)} /><button type="button" className="invite-client-user" onClick={() => setInviteClientUserOpen(true)}>Invite Client User</button><button type="button" className="client-refresh" onClick={() => void loadPageData()} disabled={loading} data-action="refresh" title="Refresh"><ActionIcon name="refresh" /><span className="aipt-action-label">Refresh</span></button><button className="add-client" type="button" onClick={() => openClientModal("add")} data-action="add" title="Add New Client"><ActionIcon name="add" /><span className="aipt-action-label">Add New Client</span></button></div>
         </div>
 
         {notice && <div className="client-notice" role="status">{notice}<button type="button" aria-label="Dismiss notification" onClick={() => setNotice("")}>x</button></div>}
@@ -938,7 +973,7 @@ export default function ClientsPage() {
                     <td><span className="country-cell"><CountryFlag country={client.country} compact />{client.country?.name ?? "-"}</span></td>
                     <td className="notes-cell">{client.notes || "-"}</td>
                     <td><StatusBadge status={client.status} /></td>
-                    <td><div className="client-row-actions"><button type="button" onClick={() => void openRelatedData(client)} data-action="view" data-icon-only="true" title="View"><ActionIcon name="view" /><span className="aipt-action-label">View</span></button><button type="button" onClick={() => openClientModal("edit", client)} data-action="edit" data-icon-only="true" title="Edit"><ActionIcon name="edit" /><span className="aipt-action-label">Edit</span></button><button type="button" className="danger" onClick={() => { setDeleteError(""); setDeletingClient(client); }} data-action="delete" data-icon-only="true" title="Delete"><ActionIcon name="delete" /><span className="aipt-action-label">Delete</span></button></div></td>
+                    <td><div className="client-row-actions"><button type="button" onClick={() => void openRelatedData(client)} data-action="view" data-icon-only="true" title="View"><ActionIcon name="view" /><span className="aipt-action-label">View</span></button><button type="button" onClick={() => openClientModal("edit", client)} data-action="edit" data-icon-only="true" title="Edit"><ActionIcon name="edit" /><span className="aipt-action-label">Edit</span></button><button type="button" className="danger" onClick={() => { setDeleteError(""); setDeletingClient(client); }} disabled={deleting} data-action="delete" aria-label={`Delete ${client.company_name}`} title="Delete Client"><ActionIcon name="delete" /><span className="aipt-action-label">Delete</span></button></div></td>
                   </tr>
                 )) : <tr><td colSpan={11} className="client-table-state">No clients match your search.</td></tr>}
               </tbody>
@@ -963,6 +998,15 @@ export default function ClientsPage() {
         onSave={saveClient}
       />}
 
+      {bulkDeleteOpen && <Modal className="delete-client-modal"><section className="delete-client" role="dialog" aria-modal="true" aria-labelledby="bulk-delete-title" aria-describedby="bulk-delete-description" aria-busy={bulkPreparing || bulkDeleting}>
+        <h2 id="bulk-delete-title">Delete All Clients</h2>
+        <p id="bulk-delete-description">This deletes all clients loaded for this confirmation, across every page, regardless of the search filter. Clients added afterward are not included. This cannot be undone from this page.</p>
+        <p>Clients with linked applications cannot be deleted. Deletion stops at the first error; clients already deleted remain deleted. Keep this page open until deletion finishes.</p>
+        <p role="status">{bulkPreparing ? "Loading all clients..." : bulkDeleting || bulkFinished ? `${bulkDeleted} of ${bulkClients.length} clients deleted.` : `${bulkClients.length} clients will be deleted.`}</p>
+        {!bulkPreparing && !bulkFinished && bulkClients.length > 0 && <label className="form-field"><span>Type DELETE ALL CLIENTS to confirm</span><input autoFocus value={bulkConfirmation} onChange={(event) => setBulkConfirmation(event.target.value)} disabled={bulkDeleting} autoComplete="off" spellCheck={false} /></label>}
+        {bulkError && <p className="modal-error" role="alert">{bulkError}</p>}
+        <footer className="client-modal-footer"><button type="button" className="secondary" onClick={() => setBulkDeleteOpen(false)} disabled={bulkPreparing || bulkDeleting}>{bulkFinished ? "Close" : "Cancel"}</button>{!bulkFinished && <button type="button" className="danger-primary" data-action="delete" disabled={bulkPreparing || bulkDeleting || !bulkClients.length || bulkConfirmation !== "DELETE ALL CLIENTS"} onClick={() => void deleteAllClients()}><ActionIcon name="delete" /><span className="aipt-action-label">{bulkDeleting ? "Deleting..." : "Delete All Clients"}</span></button>}</footer>
+      </section></Modal>}
       {deletingClient && <DeleteClientModal client={deletingClient} pending={deleting} error={deleteError} onClose={() => { if (!deleting) setDeletingClient(null); }} onDelete={() => void deleteClient()} />}
 
       {relatedClient && <RelatedDataModal

@@ -300,6 +300,54 @@ Deno.serve(async (request: Request) => {
       category => category.name.toLowerCase() === query.category.toLowerCase()
     );
 
+    const matrixCategoryLimits: Record<string, number> = {
+      'up to 5 classes': MAX_CLASS_NUMBER,
+      'up to 3 classes': MAX_CLASS_NUMBER,
+      'multi-class': MAX_CLASS_NUMBER,
+    };
+    const matrixLimit = matrixCategoryLimits[query.category.toLowerCase()];
+    if (requestedCategory && Object.prototype.hasOwnProperty.call(matrixCategoryLimits, query.category.toLowerCase())) {
+      const { data: matrixValues, error: matrixValuesError } = await db
+        .from('fee_values')
+        .select('country_id,official_fee,attorney_fee,total_fee,currency,countries(id,name,flag_url),fee_services(name)')
+        .eq('dataset_version_id', latestVersion.id)
+        .eq('status', 'active')
+        .eq('category_id', requestedCategory.id)
+        .limit(5000);
+      if (matrixValuesError) throw matrixValuesError;
+
+      const valuesByCountry = new Map<string, Map<number, ClassFee>>();
+      const countriesById = new Map<string, { id: string; name: string; flag_url?: string }>();
+      const classNumbers = new Set<number>();
+      for (const value of matrixValues || []) {
+        const country = Array.isArray((value as any).countries) ? (value as any).countries[0] : (value as any).countries;
+        const service = Array.isArray((value as any).fee_services) ? (value as any).fee_services[0] : (value as any).fee_services;
+        const match = String(service?.name || '').match(/^class\s*(\d{1,2})$/i);
+        if (!country?.id || !country.name || !match) continue;
+        const classNumber = Number(match[1]);
+        if (!Number.isInteger(classNumber) || classNumber < 1 || (matrixLimit && classNumber > matrixLimit)) continue;
+        countriesById.set(country.id, country);
+        classNumbers.add(classNumber);
+        if (!valuesByCountry.has(country.id)) valuesByCountry.set(country.id, new Map());
+        valuesByCountry.get(country.id)!.set(classNumber, {
+          official_fee: value.official_fee ?? undefined,
+          attorney_fee: value.attorney_fee ?? undefined,
+          total_fee: value.total_fee ?? undefined,
+          currency: value.currency || 'USD',
+        });
+      }
+      const displayedClassNumbers = Array.from({ length: matrixLimit }, (_, index) => index + 1);
+      const search = query.search.toLowerCase();
+      const data = [...countriesById.values()]
+        .filter((country) => !query.country || country.name.toLowerCase().includes(query.country.toLowerCase()))
+        .map((country) => {
+          const row: ClassMatrixRow = { id: country.id, country: country.name, flag_url: country.flag_url };
+          for (const classNumber of displayedClassNumbers) row[`class_${classNumber}`] = valuesByCountry.get(country.id)?.get(classNumber);
+          return row;
+        })
+        .filter((row) => !search || Object.values(row).some((value) => String(value || '').toLowerCase().includes(search)));
+      return new Response(JSON.stringify({ data, class_numbers: displayedClassNumbers, available_categories: availableCategories, page_info: { page_size: data.length, has_next: false, has_prev: false, current_position: 0 }, total_count: data.length }), { status: 200, headers: cors });
+    }
     // Build base query
     let q = db
       .from('fee_values')

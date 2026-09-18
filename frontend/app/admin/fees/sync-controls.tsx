@@ -38,7 +38,7 @@ interface SyncControlsProps {
   onResume: () => Promise<void>;
 }
 
-const SHEET_NAMES = ['Trademark', 'Patent', 'Design', 'Copyright', 'Others', 'Classes'];
+const SHEET_NAMES = ['Trademark', 'Patent', 'Design', 'Copyright', 'Others', 'Up to 5 classes', 'Multi-class', 'Up to 3 classes', 'Classes'];
 
 export default function SyncControls({ status, progress, syncing, onSync, onCancel, onResume }: SyncControlsProps) {
   const [loading, setLoading] = useState(false);

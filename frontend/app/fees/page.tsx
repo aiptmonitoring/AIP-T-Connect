@@ -6,7 +6,7 @@ import { Fragment, useCallback, useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { fetchSupabaseFunction, getSupabaseBrowserClient, setFeeSyncActivity } from '../../src/lib/supabase/browser';
 
-type Category = 'Trademark' | 'Patent' | 'Design' | 'Copyright' | 'Others' | 'Classes';
+type Category = 'Trademark' | 'Patent' | 'Design' | 'Copyright' | 'Others' | 'Classes' | 'Up to 5 classes' | 'Multi-class' | 'Up to 3 classes';
 type ClassFee = { official_fee?: number; attorney_fee?: number; total_fee?: number; currency?: string };
 type FeeRow = {
   id: string;
@@ -42,6 +42,7 @@ type FeesApiResponse = {
   message?: string;
   status?: 'no_data' | 'success' | 'error';
   action?: string;
+  class_numbers?: number[];
 };
 type SyncProgressResponse = {
   sync_run_id?: string;
@@ -52,7 +53,7 @@ type SyncProgressResponse = {
   recovery_required?: boolean;
 };
 
-const CATEGORIES: Category[] = ['Trademark', 'Patent', 'Design', 'Copyright', 'Others', 'Classes'];
+const CATEGORIES: Category[] = ['Trademark', 'Patent', 'Design', 'Copyright', 'Others', 'Up to 5 classes', 'Multi-class', 'Up to 3 classes', 'Classes'];
 
 const MAX_CLASS_NUMBER = 45;
 
@@ -90,12 +91,16 @@ export default function FeesPage() {
   const [error, setError] = useState('');
   const [noData, setNoData] = useState(false);
   const [pageInfo, setPageInfo] = useState<PaginationInfo | null>(null);
+  const [matrixClassNumbers, setMatrixClassNumbers] = useState<number[]>([]);
   const [categoryCache, setCategoryCache] = useState<Record<Category, CachedFees>>({
     Trademark: { data: [], filterKey: '' },
     Patent: { data: [], filterKey: '' },
     Design: { data: [], filterKey: '' },
     Copyright: { data: [], filterKey: '' },
     Others: { data: [], filterKey: '' },
+    'Up to 5 classes': { data: [], filterKey: '' },
+    'Multi-class': { data: [], filterKey: '' },
+    'Up to 3 classes': { data: [], filterKey: '' },
     Classes: { data: [], filterKey: '' },
   });
 
@@ -144,6 +149,7 @@ export default function FeesPage() {
       }
 
       setFees(body.data || []);
+      setMatrixClassNumbers(Array.isArray(body.class_numbers) ? body.class_numbers : []);
       setPageInfo(body.page_info || null);
       setCurrentCursor(cursor);
       setNextCursor(body.next_cursor);
@@ -281,8 +287,10 @@ export default function FeesPage() {
     return () => window.clearInterval(interval);
   }, [handleSync, loading, syncMode, syncing]);
 
-  const isClassesTab = activeTab === 'Classes';
-  const filteredFees = isClassesTab
+  const isClassMatrixTab = activeTab === 'Classes' || activeTab === 'Up to 5 classes' || activeTab === 'Multi-class' || activeTab === 'Up to 3 classes';
+  const isDedicatedClassesTab = activeTab === 'Classes';
+  const visibleClassNumbers = isClassMatrixTab ? Array.from({ length: MAX_CLASS_NUMBER }, (_, index) => index + 1) : matrixClassNumbers;
+  const filteredFees = isClassMatrixTab
     ? fees.filter(row => Boolean(row.country) && Object.keys(row).some(key => /^class_([1-9]|[1-3][0-9]|4[0-5])$/.test(key)))
     : fees.filter(row => row.category?.trim().toLowerCase() === activeTab.toLowerCase());
 
@@ -394,7 +402,7 @@ export default function FeesPage() {
 
         {/* Filters */}
         <section className="fees-toolbar">
-          {!isClassesTab && <label>
+          {!isClassMatrixTab && <label>
             Country search
             <input
               value={countryFilter}
@@ -402,7 +410,7 @@ export default function FeesPage() {
               placeholder="Search country or region"
             />
           </label>}
-          {!isClassesTab && <label>
+          {!isClassMatrixTab && <label>
             Procedure filter
             <input
               value={serviceFilter}
@@ -425,34 +433,35 @@ export default function FeesPage() {
           <div className="fees-table-scroll">
             <table>
               <thead>
-                {isClassesTab ? <>
+                {isClassMatrixTab ? <>
                   <tr>
                     <th className="fees-country-heading" rowSpan={2}>Country</th>
-                    {Array.from({ length: MAX_CLASS_NUMBER }, (_, index) => <th key={index} colSpan={3}>Class {index + 1}</th>)}
-                    <th colSpan={3}>Claiming Priority</th>
+                    {visibleClassNumbers.map((classNumber) => <th key={classNumber} colSpan={3}>Class {classNumber}</th>)}
+                    {isDedicatedClassesTab && <th colSpan={3}>Claiming Priority</th>}
                   </tr>
                   <tr>
-                    {Array.from({ length: MAX_CLASS_NUMBER + 1 }, (_, index) => <Fragment key={index}><th>Official Fees</th><th>Attorney Fees</th><th>Total</th></Fragment>)}
+                    {visibleClassNumbers.map((classNumber) => <Fragment key={classNumber}><th>Official Fees</th><th>Attorney Fees</th><th>Total</th></Fragment>)}
+                    {isDedicatedClassesTab && <Fragment><th>Official Fees</th><th>Attorney Fees</th><th>Total</th></Fragment>}
                   </tr>
                 </> : <tr><th className="fees-country-heading">Country <span>⌄</span></th><th>Services</th><th>Procedure</th><th className="fees-official">Official Fees (US$)</th><th className="fees-attorney">Attorney Fees (US$)</th><th className="fees-total">TOTAL (US$)</th><th>Related Tab</th></tr>}
               </thead>
               <tbody>
                 {loading && filteredFees.length === 0 ? (
                   <tr>
-                    <td colSpan={isClassesTab ? 1 + (MAX_CLASS_NUMBER + 1) * 3 : 7} className="fees-state">
+                    <td colSpan={isClassMatrixTab ? 1 + visibleClassNumbers.length * 3 + (isDedicatedClassesTab ? 3 : 0) : 7} className="fees-state">
                       Loading {activeTab} fees...
                     </td>
                   </tr>
                 ) : filteredFees.length === 0 ? (
                   <tr>
-                    <td colSpan={isClassesTab ? 1 + (MAX_CLASS_NUMBER + 1) * 3 : 7} className="fees-state">
+                    <td colSpan={isClassMatrixTab ? 1 + visibleClassNumbers.length * 3 + (isDedicatedClassesTab ? 3 : 0) : 7} className="fees-state">
                       No fee records available for this category.
                     </td>
                   </tr>
                 ) : (
                   filteredFees.map(row => (
                     <tr key={row.id}>
-                      {isClassesTab ? <><td className="fees-country-cell">{row.flag_url ? <img className="fees-flag" src={row.flag_url} alt={`${row.country} flag`} /> : <span className="fees-flag-fallback" aria-hidden="true">{(row.country || '').slice(0, 2).toUpperCase()}</span>}<b>{row.country || '-'}</b></td>{Array.from({ length: MAX_CLASS_NUMBER }, (_, index) => { const fee = row[`class_${index + 1}`]; return <Fragment key={index}><td className="fees-class-cell">{classFeeValue(fee, 'official_fee')}</td><td className="fees-class-cell">{classFeeValue(fee, 'attorney_fee')}</td><td className="fees-class-cell">{classFeeValue(fee, 'total_fee')}</td></Fragment>; })}<Fragment><td className="fees-class-cell">{classFeeValue(row.claiming_priority, 'official_fee')}</td><td className="fees-class-cell">{classFeeValue(row.claiming_priority, 'attorney_fee')}</td><td className="fees-class-cell">{classFeeValue(row.claiming_priority, 'total_fee')}</td></Fragment></> : <td className="fees-country-cell">
+                      {isClassMatrixTab ? <><td className="fees-country-cell">{row.flag_url ? <img className="fees-flag" src={row.flag_url} alt={`${row.country} flag`} /> : <span className="fees-flag-fallback" aria-hidden="true">{(row.country || '').slice(0, 2).toUpperCase()}</span>}<b>{row.country || '-'}</b></td>{visibleClassNumbers.map((classNumber) => { const fee = row[`class_${classNumber}`]; return <Fragment key={classNumber}><td className="fees-class-cell">{classFeeValue(fee, 'official_fee')}</td><td className="fees-class-cell">{classFeeValue(fee, 'attorney_fee')}</td><td className="fees-class-cell">{classFeeValue(fee, 'total_fee')}</td></Fragment>; })}{isDedicatedClassesTab && <Fragment><td className="fees-class-cell">{classFeeValue(row.claiming_priority, 'official_fee')}</td><td className="fees-class-cell">{classFeeValue(row.claiming_priority, 'attorney_fee')}</td><td className="fees-class-cell">{classFeeValue(row.claiming_priority, 'total_fee')}</td></Fragment>}</> : <td className="fees-country-cell">
                         {row.flag_url ? (
                           <img className="fees-flag" src={row.flag_url} alt={`${row.country} flag`} />
                         ) : (
@@ -462,7 +471,7 @@ export default function FeesPage() {
                         )}
                         <b title={row.country}>{row.country}</b>
                       </td>}
-                      {!isClassesTab && <><td className="fees-service">{row.category || '-'}</td><td className="fees-service">{row.service || '-'}</td><td className="fees-official">${formatMoney(row.official_fee)}</td><td className="fees-attorney">${formatMoney(row.attorney_fee)}</td><td className="fees-total"><strong>${formatMoney(row.total_fee)}</strong></td><td>{row.category}</td></>}
+                      {!isClassMatrixTab && <><td className="fees-service">{row.category || '-'}</td><td className="fees-service">{row.service || '-'}</td><td className="fees-official">${formatMoney(row.official_fee)}</td><td className="fees-attorney">${formatMoney(row.attorney_fee)}</td><td className="fees-total"><strong>${formatMoney(row.total_fee)}</strong></td><td>{row.category}</td></>}
                     </tr>
                   ))
                 )}
