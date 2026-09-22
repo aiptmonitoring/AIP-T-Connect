@@ -1,7 +1,7 @@
 import { toPlainText } from '../lib/plain-text';
 
 export type QuotationRequirement = { id: string; country_id: string; procedure: string | null; description: string };
-export type QuotationItem = { requirement_ids?: string[]; class_numbers?: number[]; class_count?: number; country_id: string; procedure_name: string; quantity?: number; official_fee: number; attorney_fee: number; other_fee: number; claiming_priority_fee?: number; state_fee_total?: number; vat_rate?: number; country?: { name: string } };
+export type QuotationItem = { requirement_ids?: string[]; class_numbers?: number[]; class_count?: number; class_type?: string | null; class_pricing_rows?: unknown[]; country_id: string; procedure_name: string; quantity?: number; official_fee: number; attorney_fee: number; other_fee: number; claiming_priority_fee?: number; state_fee_total?: number; vat_rate?: number; country?: { name: string } };
 export type PrintableQuotation = { valid_until?: string | null; reference_no: string; invoice_date: string; grand_total: number; total_vat: number; discount: number; currency: string; client_matter_ref?: string; vatable: boolean; vat_rate: number; client?: { company_name: string; address: string }; quotation_items: QuotationItem[] };
 const amount = (value: number) => (value === 0 ? 0 : value).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 const date = (value: string) => {
@@ -11,7 +11,7 @@ const date = (value: string) => {
 
 /** Saved fees already include quantity and classes. Never multiply them again. */
 export function quotationRow(item: QuotationItem, invoice: PrintableQuotation, index: number) {
-  const multiplier = Math.max(1, Number(item.quantity || 1)) * Math.max(1, item.class_numbers?.length || item.class_count || 0);
+  const multiplier = Math.max(1, Number(item.quantity || 1)) * (item.class_pricing_rows?.length ? 1 : Math.max(1, item.class_numbers?.length || item.class_count || 0));
   const extras = Number(item.other_fee || 0) + Number(item.claiming_priority_fee || 0) + Number(item.state_fee_total || 0);
   const discount = index === 0 ? Number(invoice.discount) : 0;
   const vat = invoice.vatable ? Number(item.attorney_fee) * Number(item.vat_rate ?? invoice.vat_rate) / 100 : 0;
@@ -41,10 +41,10 @@ export default function QuotationDocument({ invoice, requirements, qrDataUrl }: 
       }))}
       {!invoice.quotation_items.some(item => item.requirement_ids?.length) && <tr><td colSpan={3}>No requirements selected.</td></tr>}
     </tbody></table></section>
-    <section className="quotation-fees"><h3 className="quotation-tab">FEE DETAILS</h3><table><colgroup>{[19, 8, 9.5, 14.5, 15, 10.5, 10, 13.5].map((width, index) => <col key={index} style={{ width: `${width}%` }} />)}</colgroup><thead><tr><th>Procedure<br />(procedure)</th><th>Qty</th><th>No. of<br />classes</th><th>Official Fees<small>“per mark per class”</small></th><th>Attorney Fees<small>“per mark per class”</small></th><th>discount<small>line amount</small></th><th>vat<small>line amount</small></th><th>TOTAL ({invoice.currency === 'USD' ? 'US$' : invoice.currency})<small>before VAT</small></th></tr></thead><tbody>
+    <section className="quotation-fees"><h3 className="quotation-tab">FEE DETAILS</h3><table><colgroup>{[19, 8, 9.5, 14.5, 15, 10.5, 10, 13.5].map((width, index) => <col key={index} style={{ width: `${width}%` }} />)}</colgroup><thead><tr><th>Procedure<br />(procedure)</th><th>Qty</th><th>No. of<br />classes</th><th>Official Fees<small>rate basis below</small></th><th>Attorney Fees<small>rate basis below</small></th><th>discount<small>line amount</small></th><th>vat<small>line amount</small></th><th>TOTAL ({invoice.currency === 'USD' ? 'US$' : invoice.currency})<small>before VAT</small></th></tr></thead><tbody>
       {invoice.quotation_items.map((item, index) => {
         const row = quotationRow(item, invoice, index);
-        return <tr key={`${item.country_id}-${index}`}><td><strong>{item.procedure_name}</strong><br />({item.country?.name || '-'}){row.extras !== 0 && <small>Additional fees: {amount(row.extras)}</small>}</td><td>{item.quantity || 1}</td><td>{item.class_numbers?.length || item.class_count || '-'}</td><td>{amount(Number(item.official_fee) / row.multiplier)}</td><td>{amount(Number(item.attorney_fee) / row.multiplier)}</td><td>{amount(-row.discount)}</td><td>{amount(row.vat)}</td><td>{amount(row.total)}</td></tr>;
+        return <tr key={`${item.country_id}-${index}`}><td><strong>{item.procedure_name}</strong><br />({item.country?.name || '-'}){item.class_pricing_rows?.length ? <small>{item.class_type}</small> : null}{row.extras !== 0 && <small>Additional fees: {amount(row.extras)}</small>}</td><td>{item.quantity || 1}</td><td>{item.class_numbers?.length || item.class_count || '-'}</td><td>{amount(Number(item.official_fee) / row.multiplier)}<small>{item.class_pricing_rows?.length ? "per mark / selected classes" : "per mark per class"}</small></td><td>{amount(Number(item.attorney_fee) / row.multiplier)}<small>{item.class_pricing_rows?.length ? "per mark / selected classes" : "per mark per class"}</small></td><td>{amount(-row.discount)}</td><td>{amount(row.vat)}</td><td>{amount(row.total)}</td></tr>;
       })}
     </tbody></table></section>
     <div className="quotation-ending"><section className="quotation-totals"><div><span>Sub Total</span><strong>{symbol} {amount(Number(invoice.grand_total) - Number(invoice.total_vat))}</strong></div><div><span>Total VAT</span><strong>{symbol} {amount(Number(invoice.total_vat))}</strong></div><div className="quotation-due"><span>Total amount due</span><strong>{symbol} {amount(Number(invoice.grand_total))}</strong></div></section>

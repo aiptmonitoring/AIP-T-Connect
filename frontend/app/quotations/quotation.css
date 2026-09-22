@@ -325,3 +325,58 @@
 .invoice-dialog .cart-row-actions{min-width:148px;flex-wrap:nowrap}
 
 .quotation-success{padding:28px;max-width:480px}.quotation-success h2{color:var(--primary-color);font-size:21px}.quotation-success p{margin:14px 0}.quotation-success .modal-actions{display:flex;gap:12px;flex-wrap:wrap}
+
+.quotation-page .fee-preview .class-pricing-subtotal td { background: #edf7f5; color: #174c43; font-weight: 700; border-top: 1px solid #bcded7; }
+
+/* Keep the six-column class preview independent of the procedure list widths. */
+.quotation-page .fee-preview table { min-width: 820px !important; table-layout: fixed; }
+.quotation-page .fee-preview th { width: 13%; padding: 12px; white-space: normal; line-height: 1.5; }
+.quotation-page .fee-preview th:first-child { width: 17%; }
+.quotation-page .fee-preview th:nth-child(2) { width: 17%; }
+.quotation-page .fee-preview th:nth-child(3) { width: 27%; }
+.quotation-page .fee-preview td { padding: 12px; line-height: 1.5; overflow-wrap: anywhere; }
+.quotation-page .fee-preview tbody tr:not(.class-pricing-subtotal) td:nth-child(n+4) { text-align: right; font-variant-numeric: tabular-nums; }
+.quotation-page .fee-preview .class-pricing-subtotal td:not(:first-child) { text-align: right; }
+
+/* Reference-matched trademark class picker: local colors do not alter other forms. */
+.invoice-dialog .trademark-class-selector { margin: 16px 0; padding: 10px 12px 14px; border: 1px solid #b5e9f6; border-radius: 8px; background: linear-gradient(115deg, #f3fcff 0%, #fff 70%); color: #244a70; box-shadow: inset 0 1px 0 #e9faff; }
+.invoice-dialog .tm-class-header { display: flex; align-items: center; gap: 14px; padding-bottom: 10px; border-bottom: 1px solid #d4f0f8; }
+.invoice-dialog .tm-class-icon { display: grid; place-items: center; width: 40px; height: 40px; flex: 0 0 40px; border: 1px solid #aee7f5; border-radius: 12px; background: #e8faff; color: #0c9fb4; }
+.invoice-dialog .tm-class-icon svg { width: 26px; height: 26px; stroke-width: 2.5; }
+.invoice-dialog .tm-class-heading { flex: 1; min-width: 0; }
+.invoice-dialog .tm-class-heading h4 { margin: 0; font-size: 14px; font-weight: 700; line-height: 1.4; color: #204b74; }
+.invoice-dialog .tm-class-heading h4 span { font-size: 10px; font-weight: 400; color: #6c8eaa; }
+.invoice-dialog .tm-class-heading p { margin: 4px 0 0; padding: 0; color: #6387a6; font-size: 11px; line-height: 1.5; }
+.invoice-dialog .tm-class-badge { display: flex; align-items: center; justify-content: space-between; gap: 14px; min-width: 215px; padding: 5px 11px; border: 1px solid #b5eee4; border-radius: 12px; background: linear-gradient(100deg, #effff9, #e9fafc); }
+.invoice-dialog .tm-class-badge strong { display: block; font-size: 11px; line-height: 1.5; color: #159767; text-transform: uppercase; }
+.invoice-dialog .tm-class-badge div > span { display: block; color: #7096b3; font-size: 9px; line-height: 1.6; }
+.invoice-dialog .tm-class-badge > span { display: flex; color: #149cb6; }
+.invoice-dialog .tm-class-badge svg { width: 15px; height: 15px; stroke-width: 2.2; }
+.invoice-dialog .tm-class-badge.is-unset strong { color: #6387a6; }
+.invoice-dialog .tm-class-body { display: grid; grid-template-columns: minmax(0, 2.14fr) minmax(250px, 1fr); align-items: start; gap: 12px; padding: 10px 0 0; }
+.invoice-dialog .tm-class-picker { display: flex; align-items: flex-start; gap: 7px; min-width: 0; padding: 4px 0 0; }
+.invoice-dialog .tm-class-grid { display: grid; flex: 1; min-width: 0; grid-template-columns: repeat(10, minmax(0, 1fr)); gap: 5px 6px; }
+.invoice-dialog .tm-class-grid[hidden] { display: none; }
+.invoice-dialog .tm-class-button { display: grid; place-items: center; width: 100%; min-width: 0; height: 33px; padding: 0; border: 1px solid #c3edf9; border-radius: 5px; background: linear-gradient(#fff, #f8fcfe); color: #315c86; font: inherit; font-size: 11px; font-weight: 600; cursor: pointer; box-shadow: none; transition: background .12s, box-shadow .12s; }
+.invoice-dialog .tm-class-button:hover { background: #e7faff; border-color: #73d2e8; }
+.invoice-dialog .tm-class-button.is-selected { color: #fff; background: linear-gradient(115deg, #17b2cb, #0799b3); border-color: #59c9df; box-shadow: 0 0 0 2px #d7f3fa, inset 0 1px 2px #ffffff24; }
+.invoice-dialog .tm-class-button:focus-visible, .invoice-dialog .tm-class-tools button:focus-visible, .invoice-dialog .tm-class-view:focus-visible { outline: 2px solid #007c99; outline-offset: 3px; }
+.invoice-dialog .tm-class-tools { display: flex; flex-direction: column; flex: 0 0 40px; overflow: hidden; border: 1px solid #d1f0fa; border-radius: 5px; background: #f4fcff; }
+.invoice-dialog .tm-class-tools button { display: grid; place-items: center; height: 25px; width: 100%; padding: 0; border: 0; border-bottom: 1px solid #e1f5fb; background: transparent; color: #339eb4; cursor: pointer; }
+.invoice-dialog .tm-class-tools button:last-child { border-bottom: 0; }
+.invoice-dialog .tm-class-tools button:hover { background: #e0f6fc; }
+.invoice-dialog .tm-class-tools button:disabled { opacity: .4; cursor: default; }
+.invoice-dialog .tm-class-tools svg { display: block; width: 15px; height: 15px; }
+.invoice-dialog .tm-chevron-up { display: inline-flex; transform: rotate(180deg); }
+.invoice-dialog .tm-class-summary { min-width: 0; padding: 12px; border: 1px solid #c5edf9; border-radius: 7px; background: linear-gradient(115deg, #f2fbff, #f7fcfe); }
+.invoice-dialog .tm-class-summary h5 { margin: 0; padding: 0 4px 9px; border-bottom: 1px solid #d8eff8; color: #244e77; font-size: 13px; font-weight: 700; line-height: 1.4; }
+.invoice-dialog .tm-class-summary dl { margin: 0; }
+.invoice-dialog .tm-class-summary dl > div { display: flex; justify-content: space-between; gap: 8px; padding: 7px 4px; border-bottom: 1px solid #d8eff8; font-size: 12px; line-height: 1.4; }
+.invoice-dialog .tm-class-summary dt { color: #6787a6; }
+.invoice-dialog .tm-class-summary dd { margin: 0; color: #315984; font-weight: 700; }
+.invoice-dialog .tm-class-view { display: inline-flex; align-items: center; gap: 7px; padding: 8px 0 2px; border: 0; background: transparent; color: #08a0b8; font: inherit; font-size: 11px; font-weight: 700; cursor: pointer; }
+.invoice-dialog .tm-class-view svg { display: block; width: 14px; height: 14px; }
+.invoice-dialog .tm-class-empty, .invoice-dialog .tm-class-selected-list, .invoice-dialog .tm-class-collapsed-note { margin: 8px 0 0; padding: 0; font-size: 11px; color: #6888a3; line-height: 1.6; }
+.invoice-dialog .tm-class-collapsed-note { flex: 1; }
+@media (max-width: 900px) { .invoice-dialog .tm-class-body { grid-template-columns: 1fr; } .invoice-dialog .tm-class-summary { width: auto; } }
+@media (max-width: 600px) { .invoice-dialog .tm-class-header { flex-wrap: wrap; gap: 10px; } .invoice-dialog .tm-class-badge { width: 100%; min-width: 0; box-sizing: border-box; } .invoice-dialog .tm-class-grid { grid-template-columns: repeat(5, minmax(0, 1fr)); } .invoice-dialog .tm-class-tools { flex-basis: 29px; } .invoice-dialog .tm-class-button { height: 35px; } }

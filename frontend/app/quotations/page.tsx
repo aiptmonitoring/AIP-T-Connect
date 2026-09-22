@@ -1,8 +1,10 @@
 'use client';
+import { availableClassTypes, calculateClassPricing, classTypes, type ClassType, type ClassRate, type PricingRow } from '../../../backend/supabase/functions/_shared/quotation-class-pricing';
 import { toPlainText } from '../../src/lib/plain-text';
 import DataTransfer from '../../src/components/DataTransfer';
 import TablePagination from '../../src/components/TablePagination';
 import ActionIcon from '../../src/components/ActionIcon';
+import TrademarkClassSelector from '../../src/components/TrademarkClassSelector';
 
 
 import { FormEvent, useCallback, useEffect, useMemo, useState } from "react";
@@ -53,6 +55,7 @@ type AddonFee = {
   procedure_name?: string;
 };
 type Fee = {
+  class_pricing_rows?: PricingRow[];
   available?: boolean;
   issue?: string | null;
   currency?: string;
@@ -65,6 +68,7 @@ type Fee = {
   total_fee: number;
 };
 type Lookup = {
+  class_rates: ClassRate[];
   fee_dataset?: { id: string; version_number: number; published_at: string | null } | null;
   role?: "administrator" | "client";
   current_client_id?: string | null;
@@ -86,7 +90,8 @@ type QuoteItem = {
   procedure_name: string;
   quantity: number;
   class_numbers?: number[];
-  class_type?: "Single" | "Multi" | null;
+  class_type?: ClassType | "Single" | "Multi" | null;
+  class_pricing_rows?: PricingRow[];
   class_count?: number;
   additional_fee_per_class?: number;
   requirement_ids: string[];
@@ -146,6 +151,7 @@ const dateText = (value: string) =>
 const validFlagUrl = (value?: string | null) =>
   typeof value === "string" && /^https?:\/\//i.test(value) ? value : "";
 const emptyLookup: Lookup = {
+  class_rates: [],
   clients: [],
   services: [],
   projects: [],
@@ -216,7 +222,8 @@ export default function QuotationsPage() {
   const [procedureNames, setProcedureNames] = useState<string[]>([]);
   const [requirementIds, setRequirementIds] = useState<string[]>([]);
   const [selectedClassNumbers, setSelectedClassNumbers] = useState<number[]>([]);
-  const [classCount, setClassCount] = useState(0);
+  const [classCount, setClassCount] = useState(1);
+  const [classType, setClassType] = useState<ClassType | "">("");
   const [cart, setCart] = useState<QuoteItem[]>([]);
   const [error, setError] = useState("");
   const [notice, setNotice] = useState("");
@@ -334,13 +341,28 @@ export default function QuotationsPage() {
         availableProcedures.some((procedure) => procedure.name === procedureName && procedure.id === item.procedure_id),
       ),
   );
+  const classTypeOptions = availableClassTypes(countryIds, lookup.class_rates ?? [], lookup.fees.filter(fee => fee.category === 'Trademark' && fee.available !== false && (!procedureNames.length || procedureNames.includes(fee.procedure_name))).map(fee => fee.country_id));
+  useEffect(() => {
+    if (classType && !classTypeOptions.includes(classType)) setClassType('');
+  }, [countryIds, category, lookup, procedureNames, classType]);
   const selectionFees = countryIds.flatMap((countryId) => procedureNames.map((procedureName) => {
     const matches = lookup.fees.filter((fee) => fee.country_id === countryId && fee.category === category && fee.procedure_name === procedureName);
     const fee = matches.length === 1 ? matches[0] : null;
-    const valid = fee && fee.available !== false && (!fee.currency || fee.currency === 'USD') && [fee.official_fee, fee.attorney_fee, fee.total_fee].every((value) => typeof value === 'number' && Number.isFinite(value) && value >= 0);
-    return { countryId, procedureName, fee: valid ? fee : null, issue: matches.length > 1 ? 'Multiple matching rates; resolve the fee data before quoting.' : fee?.issue || 'No complete published fee is available for this combination.' };
+    if (!fee) return { countryId, procedureName, fee: null, issue: matches.length > 1 ? 'Multiple matching procedure rates; resolve the fee data before quoting.' : 'No published procedure fee is available for this combination.' };
+    try {
+      if (category === 'Trademark') {
+        if (!classType || !classTypeOptions.includes(classType)) throw Error('Select a type of class available for the selected countries.');
+        if (selectedClassNumbers.length && selectedClassNumbers.length !== classCount) throw Error('Optional trademark class numbers must match the number of classes.');
+        const pricing = calculateClassPricing(fee, countryId, classType, classCount, lookup.class_rates ?? []);
+        return { countryId, procedureName, fee: { ...fee, ...pricing, class_pricing_rows: pricing.rows }, issue: '' };
+      }
+      if (fee.available === false || fee.currency !== 'USD' || ![fee.official_fee, fee.attorney_fee, fee.total_fee].every(value => typeof value === 'number' && Number.isFinite(value) && value >= 0)) throw Error(fee.issue || 'No complete published fee is available for this combination.');
+      return { countryId, procedureName, fee, issue: '' };
+    } catch (cause) {
+      return { countryId, procedureName, fee: null, issue: cause instanceof Error ? cause.message : 'Unable to calculate class fees.' };
+    }
   }));
-  const generatedFees = selectionFees.map((item) => item.fee).filter((fee): fee is Fee => Boolean(fee));
+  const generatedFees = selectionFees.map((item) => item.fee).filter((fee): fee is NonNullable<typeof fee> => Boolean(fee));
   const allExactFeesFound = selectionFees.length > 0 && selectionFees.every((item) => item.fee) && Boolean(lookup.fee_dataset?.id);
   useEffect(() => {
     setRequirementIds((current) => {
@@ -355,15 +377,16 @@ export default function QuotationsPage() {
     procedure_name: fee.procedure_name,
     quantity,
     class_numbers: category === "Trademark" ? selectedClassNumbers : [],
-    class_type: category === "Trademark" && selectedClassNumbers.length > 0 ? (selectedClassNumbers.length === 1 ? "Single" : "Multi") : null,
+    class_type: category === "Trademark" ? classType || null : null,
+    class_pricing_rows: fee.class_pricing_rows ?? [],
     class_count: category === "Trademark" ? classCount : 0,
     additional_fee_per_class: 0,
     requirement_ids: requirementIds.filter((id) =>
       availableRequirements.some((item) => item.id === id && item.country_id === fee.country_id && availableProcedures.some((procedure) => procedure.id === item.procedure_id && procedure.name === fee.procedure_name)),
     ),
-    official_fee: roundFee(fee.official_fee * quantity * Math.max(1, selectedClassNumbers.length)),
-    attorney_fee: roundFee(fee.attorney_fee * quantity * Math.max(1, selectedClassNumbers.length)),
-    other_fee: roundFee(roundFee(fee.total_fee) * quantity * Math.max(1, selectedClassNumbers.length) - roundFee(fee.official_fee * quantity * Math.max(1, selectedClassNumbers.length)) - roundFee(fee.attorney_fee * quantity * Math.max(1, selectedClassNumbers.length))),
+    official_fee: roundFee(fee.official_fee * quantity),
+    attorney_fee: roundFee(fee.attorney_fee * quantity),
+    other_fee: roundFee(roundFee(fee.total_fee) * quantity - roundFee(fee.official_fee * quantity) - roundFee(fee.attorney_fee * quantity)),
     vat_rate: lookup.vat_rates.find((rate) => rate.country_id === fee.country_id)?.vat ?? 0,
     claiming_priority: false,
     claiming_priority_fee: 0,
@@ -452,7 +475,8 @@ export default function QuotationsPage() {
     setProcedureNames([]);
     setRequirementIds([]);
     setSelectedClassNumbers([]);
-    setClassCount(0);
+    setClassCount(1);
+    setClassType("");
     setCart([]);
   };
   const openNew = () => {
@@ -475,7 +499,8 @@ export default function QuotationsPage() {
     setDiscount(quote.discount);
     setCart(quote.quotation_items ?? []);
     setSelectedClassNumbers([]);
-    setClassCount(0);
+    setClassCount(1);
+    setClassType("");
     setCountryIds([]);
     setProcedureNames([]);
     setError("");
@@ -492,8 +517,8 @@ export default function QuotationsPage() {
       setError("Select a valid service from the Services page data.");
       return;
     }
-    if (category === "Trademark" && (classCount < 0 || classCount > 45)) {
-      setError("Trademark classes must be between 0 and 45.");
+    if (category === "Trademark" && (!Number.isInteger(classCount) || classCount < 1 || classCount > 45)) {
+      setError("Trademark class count must be a whole number from 1 to 45.");
       return;
     }
     if (category === "Trademark" && selectedClassNumbers.some((classNumber) =>
@@ -543,7 +568,8 @@ export default function QuotationsPage() {
     setProcedureNames([]);
     setRequirementIds([]);
     setSelectedClassNumbers([]);
-    setClassCount(0);
+    setClassCount(1);
+    setClassType("");
     setFeeModal(false);
   };
   const save = async (event: FormEvent) => {
@@ -872,8 +898,11 @@ export default function QuotationsPage() {
             selectedClassNumbers={selectedClassNumbers}
             setSelectedClassNumbers={(values: number[]) => {
               setSelectedClassNumbers(values);
-              setClassCount(values.length);
+              if (values.length) setClassCount(values.length);
             }}
+            classType={classType}
+            setClassType={setClassType}
+            classTypeOptions={classTypeOptions}
             classCount={classCount}
             setClassCount={setClassCount}
             availableRequirements={availableRequirements}
@@ -1136,6 +1165,10 @@ function InvoiceModal(props: any) {
     selectedClassNumbers,
     setSelectedClassNumbers,
     classCount,
+    setClassCount,
+    classType,
+    setClassType,
+    classTypeOptions,
     availableRequirements,
     selectionFees,
     allExactFeesFound,
@@ -1162,7 +1195,7 @@ function InvoiceModal(props: any) {
   const [editingRow, setEditingRow] = useState<number | null>(null);
   const [draftQuantity, setDraftQuantity] = useState("1");
   const validDraft = Number.isInteger(Number(draftQuantity)) && Number(draftQuantity) >= 1 && Number(draftQuantity) <= 1000;
-  const previewMultiplier = (editingRow === null ? 1 : Number(draftQuantity)) * (category === "Trademark" ? Math.max(1, selectedClassNumbers.length) : 1);
+  const previewMultiplier = editingRow === null ? 1 : Number(draftQuantity);
   const previewMoney = (value: number) => money(Math.round(value * previewMultiplier * 100) / 100);
   const cartBlocker = loadingFees ? "Loading fees..."
     : !lookup.fee_dataset?.id ? "Published fees are unavailable. Retry loading fees or contact your administrator."
@@ -1172,10 +1205,13 @@ function InvoiceModal(props: any) {
     : editingRow !== null && !validDraft ? "Enter a whole-number quantity from 1 to 1,000." : "";
   const cancelEdit = () => {
     setEditingRow(null);
+    setDraftQuantity("1");
     setCountryIds([]);
     setProcedureNames([]);
     setRequirementIds([]);
     setSelectedClassNumbers([]);
+    setClassCount(1);
+    setClassType("");
   };
   const beginEdit = (item: QuoteItem, index: number) => {
     setEditingRow(index);
@@ -1185,6 +1221,8 @@ function InvoiceModal(props: any) {
     setProcedureNames([item.procedure_name]);
     setRequirementIds(item.requirement_ids ?? []);
     setSelectedClassNumbers(item.class_numbers ?? []);
+    setClassCount(item.class_count || item.class_numbers?.length || 1);
+    setClassType(classTypes.includes(item.class_type as ClassType) ? item.class_type : "Per mark per class");
     document.getElementById('quotation-fee-selection')?.scrollIntoView({ behavior: 'smooth', block: 'start' });
   };
   const updateRow = () => {
@@ -1286,6 +1324,8 @@ function InvoiceModal(props: any) {
                     const selectedService = values.at(-1);
                     if (selectedService) {
                       setCategory(selectedService as Category);
+                      setClassType("");
+                      setClassCount(1);
                       setSelectedClassNumbers([]);
                       setProcedureNames([]);
                       setRequirementIds([]);
@@ -1295,17 +1335,20 @@ function InvoiceModal(props: any) {
                   getLabel={(item) => item.name!}
                   compact
                 />
-                
+
               </div>
               <SearchMulti
                 label={`Country${cart.length ? "" : " *"}`}
                 options={lookup.countries}
                 selected={countryIds}
-                onChange={(values) => { setCountryIds(values); setRequirementIds([]); }}
+                onChange={(values) => { setCountryIds(values); setRequirementIds([]); setClassType(""); }}
                 getId={(item) => item.id!}
                 getLabel={(item) => item.name!}
                 compact
               />
+
+
+
               <SearchMulti
                 label={`Procedure${cart.length ? "" : " *"} (multiple allowed)`}
                 options={availableProcedures}
@@ -1317,24 +1360,44 @@ function InvoiceModal(props: any) {
               />
 
 
-              {category === "Trademark" && (
-                <SearchMulti
-                  label="Trademark Classes (optional)"
-                  options={Array.from({ length: 45 }, (_, index) => ({ class_number: index + 1 }))}
-                  selected={selectedClassNumbers.map(String)}
-                  onChange={(values) => setSelectedClassNumbers(values.map(Number).sort((a, b) => a - b))}
-                  getId={(item) => String(item.class_number)}
-                  getLabel={(item) => `Class ${item.class_number}`}
-                  compact
-                />
-              )}
+              {category === "Trademark" && <>
+                <label>Type of class *
+                  <select aria-label="Type of class" value={classType} onChange={(event) => setClassType(event.target.value as ClassType)} disabled={!countryIds.length}>
+                    <option value="">{countryIds.length ? 'Select type of class' : 'Select country first'}</option>
+                    {classTypeOptions.map((type: ClassType) => <option key={type} value={type}>{type === 'Multi-class' ? 'Multi class' : type}</option>)}
+                  </select>
+                </label>
+                <label>Number of classes *
+                  <select aria-label="Number of classes" value={classCount} onChange={(event) => { setClassCount(Number(event.target.value)); setSelectedClassNumbers([]); }} disabled={!classType}>
+                    {Array.from({ length: 45 }, (_, index) => index + 1).map(count => <option key={count} value={count}>{count} {count === 1 ? 'class' : 'classes'}</option>)}
+                  </select>
+                </label>
+              </>}
             </div>
+            {category === "Trademark" && <TrademarkClassSelector
+              selected={selectedClassNumbers}
+              onChange={setSelectedClassNumbers}
+              classType={classType}
+              classCount={classCount}
+            />}
             <div className="selection-panels">
               <RequirementTable countries={countries} requirements={availableRequirements} selected={requirementIds} onChange={setRequirementIds} />
             </div>
             <div className="fee-preview" aria-live="polite">
               <p>{lookup.fee_dataset ? 'Published fee version ' + lookup.fee_dataset.version_number + (lookup.fee_dataset.published_at ? ' · ' + dateText(lookup.fee_dataset.published_at) : '') : ''}</p>
-              {selectionFees.length ? <table><thead><tr><th>Country</th><th>Procedure</th><th>Official (USD)</th><th>Attorney (USD)</th><th>Total (USD)</th></tr></thead><tbody>{selectionFees.map((item: { countryId: string; procedureName: string; fee: Fee | null; issue: string }) => <tr key={item.countryId + item.procedureName}><td>{countries.find((country: Country) => country.id === item.countryId)?.name}</td><td>{item.procedureName}</td>{item.fee ? <><td>{editingRow === null || validDraft ? previewMoney(item.fee.official_fee) : "?"}</td><td>{editingRow === null || validDraft ? previewMoney(item.fee.attorney_fee) : "?"}</td><td>{editingRow === null || validDraft ? previewMoney(item.fee.total_fee) : "?"}</td></> : <td colSpan={3} className="fee-missing">{item.issue}</td>}</tr>)}</tbody></table> : <p>Select a service, country and procedure to view matching requirements and fees.</p>}
+              {category === 'Trademark' && <p>Class types follow the selected country. Multi class and bundled fees replace the procedure fee. Trademark class numbers are optional and do not change the ordinal class rates.</p>}
+              {category === 'Trademark' && countryIds.length > 0 && !classTypeOptions.length && <p className="fee-missing">No common class pricing is configured for these countries. Select countries with the same available class type.</p>}
+              {selectionFees.length ? <table><thead><tr><th>Country</th><th>Procedure</th><th>Class / fee</th><th>Official (USD)</th><th>Attorney (USD)</th><th>Total (USD)</th></tr></thead><tbody>
+                {selectionFees.flatMap((item: { countryId: string; procedureName: string; fee: Fee | null; issue: string }) => {
+                  const key = item.countryId + item.procedureName;
+                  const country = countries.find((country: Country) => country.id === item.countryId)?.name;
+                  if (!item.fee) return [<tr key={key}><td>{country}</td><td>{item.procedureName}</td><td colSpan={4} className="fee-missing">{item.issue}</td></tr>];
+                  const fee = item.fee;
+                  const rows = fee.class_pricing_rows?.length ? fee.class_pricing_rows : [{ ...fee, label: 'Procedure fee' }];
+                  return [...rows.map((row, index) => <tr key={key + index}><td>{country}</td><td>{item.procedureName}</td><td>{row.label}</td><td>{validDraft ? previewMoney(row.official_fee) : '?'}</td><td>{validDraft ? previewMoney(row.attorney_fee) : '?'}</td><td>{validDraft ? previewMoney(row.total_fee) : '?'}</td></tr>),
+                    <tr key={key + '-subtotal'} className="class-pricing-subtotal"><td colSpan={3}>{item.procedureName} subtotal{classType ? ' / ' + classType : ''}</td><td>{validDraft ? previewMoney(fee.official_fee) : '?'}</td><td>{validDraft ? previewMoney(fee.attorney_fee) : '?'}</td><td>{validDraft ? previewMoney(fee.total_fee) : '?'}</td></tr>];
+                })}
+              </tbody></table> : <p>Select a service, country and procedure to view matching requirements and fees.</p>}
             </div>
             {selectionFees.length > 0 && <p>Amounts reflect your selections. VAT and discount are shown in the cart.</p>}
             {cartBlocker && <p id="cart-blocker" role="status">{cartBlocker}</p>}
@@ -1379,14 +1442,14 @@ function InvoiceModal(props: any) {
                       const country = lookup.countries.find((countryItem: Country) => countryItem.id === item.country_id);
                       return <tr key={`${item.country_id}-${item.procedure_name}-${index}`}>
                         <td><span className="country-flag-cell">{validFlagUrl(country?.flag_url) ? <img src={validFlagUrl(country?.flag_url)} alt="" /> : null}{country?.name ?? "-"}</span></td>
-                        <td><strong>{item.procedure_name}</strong>
+                        <td><strong>{item.procedure_name}</strong>{item.class_type && <small><br />{item.class_type}</small>}
                         <small>
                           </small>{item.class_numbers?.length ? <small><br />
                             Classes: {item.class_numbers.join(", ")}
                             </small> : null}
                         </td>
                         <td><input className="cart-number" aria-label={`Quantity for ${item.procedure_name}, row ${index + 1}`} type="number" min="1" max="1000" step="1" readOnly={editingRow !== index} value={editingRow === index ? draftQuantity : item.quantity ?? 1} onChange={(event) => setDraftQuantity(event.target.value)} /></td>
-                        <td>{(editingRow === index ? category : item.category) === "Trademark" ? (editingRow === index ? selectedClassNumbers.length || 1 : item.class_numbers?.length || 1) : "—"}</td>
+                        <td>{(editingRow === index ? category : item.category) === "Trademark" ? (editingRow === index ? classCount : item.class_count || item.class_numbers?.length || 1) : "—"}</td>
                         <td>${money(item.official_fee)}</td>
                         <td>${money(item.attorney_fee)}</td>
                         <td>${money(vat)} <small>({item.vat_rate}%)</small></td>
@@ -1456,8 +1519,8 @@ function InvoiceModal(props: any) {
                     if (!example) return <div className="calc-example">Add fees to the cart to see the calculation breakdown.</div>;
                     const exQty = example.quantity || 1;
                     const exClasses = example.category === "Trademark" ? example.class_numbers?.length || example.class_count || 1 : 1;
-                    const exOfficial = example.official_fee / (exQty * exClasses);
-                    const exAttorney = example.attorney_fee / (exQty * exClasses);
+                    const exOfficial = example.official_fee / exQty;
+                    const exAttorney = example.attorney_fee / exQty;
                     const otherFees = example.other_fee + (example.claiming_priority_fee ?? 0) + (example.state_fee_total ?? 0);
                     const totalFees = example.attorney_fee + example.official_fee + otherFees;
                     const exVat = vatable ? example.attorney_fee * example.vat_rate / 100 : 0;
@@ -1465,8 +1528,8 @@ function InvoiceModal(props: any) {
                     return (
                       <div className="calc-example">
                         <b>Calculation · {example.procedure_name}</b>
-                        <div>Qty ({exQty}) × Classes ({exClasses}) × Attorney Fee ({money(exAttorney)}) = <b>{money(example.attorney_fee)}</b></div>
-                        <div>Qty ({exQty}) × Classes ({exClasses}) × Official Fee ({money(exOfficial)}) = <b>{money(example.official_fee)}</b></div>
+                        <div>Qty ({exQty}) &times; Attorney fee for {exClasses} class(es) ({money(exAttorney)}) = <b>{money(example.attorney_fee)}</b></div>
+                        <div>Qty ({exQty}) &times; Official fee for {exClasses} class(es) ({money(exOfficial)}) = <b>{money(example.official_fee)}</b></div>
                         {otherFees > 0 && <div>Other fees and add-ons = <b>{money(otherFees)}</b></div>}
                         <div>Total Fees = <b>{money(totalFees)}</b></div>
                         <div>VAT ({vatable ? example.vat_rate : 0}%) = <b>{money(exVat)}</b></div>
