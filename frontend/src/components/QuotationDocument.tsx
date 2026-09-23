@@ -1,7 +1,9 @@
+import QuotationOfficeFooter from './QuotationOfficeFooter';
+import { quotationDisplayRows, type PricingRow } from '../../../backend/supabase/functions/_shared/quotation-class-pricing';
 import { toPlainText } from '../lib/plain-text';
 
-export type QuotationRequirement = { id: string; country_id: string; procedure: string | null; description: string };
-export type QuotationItem = { requirement_ids?: string[]; class_numbers?: number[]; class_count?: number; class_type?: string | null; class_pricing_rows?: unknown[]; country_id: string; procedure_name: string; quantity?: number; official_fee: number; attorney_fee: number; other_fee: number; claiming_priority_fee?: number; state_fee_total?: number; vat_rate?: number; country?: { name: string } };
+export type QuotationRequirement = { id: string; country_id: string; procedure: string | null; description: string; category?: string | null };
+export type QuotationItem = { category?: string; requirement_ids?: string[]; class_numbers?: number[]; class_count?: number; class_type?: string | null; class_pricing_rows?: PricingRow[]; country_id: string; procedure_name: string; quantity?: number; official_fee: number; attorney_fee: number; other_fee: number; claiming_priority_fee?: number; state_fee_total?: number; vat_rate?: number; country?: { name: string } };
 export type PrintableQuotation = { valid_until?: string | null; reference_no: string; invoice_date: string; grand_total: number; total_vat: number; discount: number; currency: string; client_matter_ref?: string; vatable: boolean; vat_rate: number; client?: { company_name: string; address: string }; quotation_items: QuotationItem[] };
 const amount = (value: number) => (value === 0 ? 0 : value).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 const date = (value: string) => {
@@ -18,8 +20,25 @@ export function quotationRow(item: QuotationItem, invoice: PrintableQuotation, i
   return { multiplier, extras, discount, vat, total: Number(item.official_fee) + Number(item.attorney_fee) + extras - discount };
 }
 
+/** Selected requirements take priority; otherwise include matching catalog requirements. */
+export function quotationRequirementRows(invoice: PrintableQuotation, requirements: QuotationRequirement[]) {
+  const seen = new Set<string>();
+  return invoice.quotation_items.flatMap(item => {
+    const matches = (requirement: QuotationRequirement) => requirement.country_id === item.country_id && requirement.procedure === item.procedure_name && (!item.category || requirement.category === item.category);
+    const ids = item.requirement_ids?.length ? item.requirement_ids : requirements.filter(matches).map(requirement => requirement.id);
+    return ids.flatMap(id => {
+      const key = [item.country_id, item.category, item.procedure_name, id].join('|');
+      if (seen.has(key)) return [];
+      seen.add(key);
+      const requirement = requirements.find(entry => entry.id === id && matches(entry));
+      return [{ key, country: item.country?.name || '-', procedure: item.procedure_name, description: requirement ? toPlainText(requirement.description) : 'The selected requirement is no longer available for this country and procedure.' }];
+    });
+  });
+}
+
 export default function QuotationDocument({ invoice, requirements, qrDataUrl }: { invoice: PrintableQuotation; requirements: QuotationRequirement[]; qrDataUrl: string }) {
   const symbol = invoice.currency === 'USD' ? '$' : invoice.currency;
+  const requirementRows = quotationRequirementRows(invoice, requirements);
   return <article className="quotation-sheet">
     <header className="quotation-heading">
       <h1>Quotation</h1>
@@ -35,19 +54,17 @@ export default function QuotationDocument({ invoice, requirements, qrDataUrl }: 
       <dl className="quotation-meta"><div><dt>Date:</dt><dd>{date(invoice.invoice_date)}</dd></div><div><dt>Ref# Number:</dt><dd>{invoice.reference_no}</dd></div><div><dt>Client Reference:</dt><dd>{invoice.client_matter_ref || '-'}</dd></div><div><dt>Valid Until:</dt><dd>{invoice.valid_until ? new Date(invoice.valid_until).toLocaleDateString('en-US', { timeZone: 'Asia/Kuwait' }) : 'Not yet available'}</dd></div></dl>
     </section>
     <section className="quotation-requirements"><h3 className="quotation-tab">REQUIREMENTS</h3><table><colgroup><col style={{ width: '22%' }} /><col style={{ width: '25%' }} /><col /></colgroup><thead><tr><th>Country</th><th>Procedure</th><th>Description</th></tr></thead><tbody>
-      {invoice.quotation_items.flatMap((item, index) => (item.requirement_ids ?? []).map(id => {
-        const requirement = requirements.find(entry => entry.id === id && entry.country_id === item.country_id);
-        return <tr key={`${index}-${id}`}><td>{item.country?.name || '-'}</td><td>{item.procedure_name}</td><td>{requirement ? toPlainText(requirement.description) : 'Requirement is no longer available.'}</td></tr>;
-      }))}
-      {!invoice.quotation_items.some(item => item.requirement_ids?.length) && <tr><td colSpan={3}>No requirements selected.</td></tr>}
+      {requirementRows.map(row => <tr key={row.key}><td>{row.country}</td><td>{row.procedure}</td><td>{row.description}</td></tr>)}
+      {!requirementRows.length && <tr><td colSpan={3}>No applicable requirements are configured for the selected services, countries and procedures.</td></tr>}
     </tbody></table></section>
-    <section className="quotation-fees"><h3 className="quotation-tab">FEE DETAILS</h3><table><colgroup>{[19, 8, 9.5, 14.5, 15, 10.5, 10, 13.5].map((width, index) => <col key={index} style={{ width: `${width}%` }} />)}</colgroup><thead><tr><th>Procedure<br />(procedure)</th><th>Qty</th><th>No. of<br />classes</th><th>Official Fees<small>rate basis below</small></th><th>Attorney Fees<small>rate basis below</small></th><th>discount<small>line amount</small></th><th>vat<small>line amount</small></th><th>TOTAL ({invoice.currency === 'USD' ? 'US$' : invoice.currency})<small>before VAT</small></th></tr></thead><tbody>
-      {invoice.quotation_items.map((item, index) => {
-        const row = quotationRow(item, invoice, index);
-        return <tr key={`${item.country_id}-${index}`}><td><strong>{item.procedure_name}</strong><br />({item.country?.name || '-'}){item.class_pricing_rows?.length ? <small>{item.class_type}</small> : null}{row.extras !== 0 && <small>Additional fees: {amount(row.extras)}</small>}</td><td>{item.quantity || 1}</td><td>{item.class_numbers?.length || item.class_count || '-'}</td><td>{amount(Number(item.official_fee) / row.multiplier)}<small>{item.class_pricing_rows?.length ? "per mark / selected classes" : "per mark per class"}</small></td><td>{amount(Number(item.attorney_fee) / row.multiplier)}<small>{item.class_pricing_rows?.length ? "per mark / selected classes" : "per mark per class"}</small></td><td>{amount(-row.discount)}</td><td>{amount(row.vat)}</td><td>{amount(row.total)}</td></tr>;
-      })}
+    <section className="quotation-fees"><h3 className="quotation-tab">FEE DETAILS</h3><table><colgroup>{[19, 8, 9.5, 14.5, 15, 10.5, 10, 13.5].map((width, index) => <col key={index} style={{ width: `${width}%` }} />)}</colgroup><thead><tr><th>Procedure<br />(procedure)</th><th>Qty</th><th>Class<br />numbers</th><th>Official Fees<small>line amount</small></th><th>Attorney Fees<small>line amount</small></th><th>discount<small>line amount</small></th><th>vat<small>line amount</small></th><th>TOTAL ({invoice.currency === 'USD' ? 'US$' : invoice.currency})<small>before VAT</small></th></tr></thead><tbody>
+      {invoice.quotation_items.flatMap((item, index) => quotationDisplayRows(item, invoice.vatable ? item.vat_rate ?? invoice.vat_rate : 0).map((line, lineIndex) => {
+        const discount = index === 0 && lineIndex === 0 ? Number(invoice.discount) : 0;
+        const total = line.official_fee + line.attorney_fee + line.other_fee - discount;
+        return <tr key={index + '-' + lineIndex}><td>{lineIndex === 0 && <><strong>{item.procedure_name}</strong><br />({item.country?.name || '-'})</>}<small>{line.label}</small>{line.source && <small>Fees: {line.source}</small>}{line.other_fee !== 0 && <small>Other fees: {amount(line.other_fee)}</small>}</td><td>{line.quantity}</td><td>{line.class_numbers.join(', ') || '-'}</td><td>{amount(line.official_fee)}</td><td>{amount(line.attorney_fee)}</td><td>{amount(-discount)}</td><td>{amount(line.vat)}</td><td>{amount(total)}</td></tr>;
+      }))}
     </tbody></table></section>
     <div className="quotation-ending"><section className="quotation-totals"><div><span>Sub Total</span><strong>{symbol} {amount(Number(invoice.grand_total) - Number(invoice.total_vat))}</strong></div><div><span>Total VAT</span><strong>{symbol} {amount(Number(invoice.total_vat))}</strong></div><div className="quotation-due"><span>Total amount due</span><strong>{symbol} {amount(Number(invoice.grand_total))}</strong></div></section>
-    <footer className="quotation-offices" aria-label="AIPT offices: Saudi Arabia, UAE, Bahrain, Kuwait, Oman, Lebanon, Egypt, Sudan, Tanzania, Azerbaijan, India and China"><img src="/images/quotation-reference.png" alt="AIPT regional offices and contact details from the supplied quotation artwork" /></footer></div>
+    <QuotationOfficeFooter /></div>
   </article>;
 }

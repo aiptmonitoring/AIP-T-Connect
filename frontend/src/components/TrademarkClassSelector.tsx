@@ -56,7 +56,7 @@ export default function TrademarkClassSelector({ selected, onChange, classType, 
       <aside className="tm-class-summary" aria-label="Class selection summary">
         <div aria-live="polite" aria-atomic="true">
           <h5>Selected Classes: {selected.length}</h5>
-          {includedLimit > 0 ? <dl><div><dt>{includedLimit === 1 ? 'First class' : 'Included classes (up to ' + includedLimit + ')'}</dt><dd>{included}</dd></div><div><dt>Additional classes</dt><dd>{additional}</dd></div></dl> : <dl><div><dt>{classType ? 'Classes charged individually' : 'Selected class numbers'}</dt><dd>{selected.length}</dd></div></dl>}
+          {includedLimit > 0 ? <dl><div><dt>First class (Trademark)</dt><dd>{Math.min(1, selected.length)}</dd></div>{includedLimit > 1 && <div><dt>Additional classes 2 to {includedLimit}</dt><dd>{Math.max(0, included - 1)}</dd></div>}<div><dt>{includedLimit > 1 ? 'Classes after ' + includedLimit : 'Additional classes'}</dt><dd>{additional}</dd></div></dl> : <dl><div><dt>{classType ? 'Classes charged individually' : 'Selected class numbers'}</dt><dd>{selected.length}</dd></div></dl>}
         </div>
         <button className="tm-class-view" type="button" aria-expanded={showSelected} aria-controls={id + '-selected'} onClick={() => setShowSelected(!showSelected)}>{showSelected ? 'Hide selected classes' : 'View all classes'}<span className={showSelected ? 'tm-chevron-up' : ''}><ClassIcon name="chevron" /></span></button>
         {showSelected && <p className="tm-class-selected-list" id={id + '-selected'}>{selected.length ? selected.map(number => 'Class ' + number).join(', ') : 'No specific classes selected.'}</p>}

@@ -380,3 +380,18 @@
 .invoice-dialog .tm-class-collapsed-note { flex: 1; }
 @media (max-width: 900px) { .invoice-dialog .tm-class-body { grid-template-columns: 1fr; } .invoice-dialog .tm-class-summary { width: auto; } }
 @media (max-width: 600px) { .invoice-dialog .tm-class-header { flex-wrap: wrap; gap: 10px; } .invoice-dialog .tm-class-badge { width: 100%; min-width: 0; box-sizing: border-box; } .invoice-dialog .tm-class-grid { grid-template-columns: repeat(5, minmax(0, 1fr)); } .invoice-dialog .tm-class-tools { flex-basis: 29px; } .invoice-dialog .tm-class-button { height: 35px; } }
+
+/* Class fees follow the referenced country/procedure table, with ordinal groups. */
+.quotation-page .fee-preview table { min-width: 1040px !important; }
+.quotation-page .fee-preview th { width: 12%; }
+.quotation-page .fee-preview th:first-child { width: 14%; }
+.quotation-page .fee-preview th:nth-child(2) { width: 23%; }
+.quotation-page .fee-preview th:nth-child(3) { width: 5%; }
+.quotation-page .fee-preview th:nth-child(4) { width: 10%; }
+.quotation-page .fee-preview tbody tr:not(.class-pricing-subtotal) td:nth-child(4) { text-align: left; }
+.invoice-dialog .class-fee-description { display: block; margin-top: 4px; white-space: normal; line-height: 1.5; }
+.invoice-dialog .fee-preview td small, .invoice-dialog .invoice-cart-table td small { display: block; margin-top: 4px; color: #648294; font-size: 10px; white-space: normal; }
+.invoice-dialog .invoice-cart-table .class-fee-group-start td { border-top: 2px solid #b8dee5; }
+.invoice-dialog .invoice-cart-table td:nth-child(2) { min-width: 185px; white-space: normal; }
+.invoice-dialog .invoice-cart-table td:nth-child(4) { min-width: 110px; white-space: normal; }
+.invoice-dialog .invoice-cart-table td[rowspan] { vertical-align: top; padding-top: 14px; }

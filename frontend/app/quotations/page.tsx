@@ -1,5 +1,5 @@
 'use client';
-import { availableClassTypes, calculateClassPricing, classTypes, type ClassType, type ClassRate, type PricingRow } from '../../../backend/supabase/functions/_shared/quotation-class-pricing';
+import { availableClassTypes, calculateClassPricing, quotationDisplayRows, classTypes, type ClassType, type ClassRate, type PricingRow } from '../../../backend/supabase/functions/_shared/quotation-class-pricing';
 import { toPlainText } from '../../src/lib/plain-text';
 import DataTransfer from '../../src/components/DataTransfer';
 import TablePagination from '../../src/components/TablePagination';
@@ -1196,7 +1196,6 @@ function InvoiceModal(props: any) {
   const [draftQuantity, setDraftQuantity] = useState("1");
   const validDraft = Number.isInteger(Number(draftQuantity)) && Number(draftQuantity) >= 1 && Number(draftQuantity) <= 1000;
   const previewMultiplier = editingRow === null ? 1 : Number(draftQuantity);
-  const previewMoney = (value: number) => money(Math.round(value * previewMultiplier * 100) / 100);
   const cartBlocker = loadingFees ? "Loading fees..."
     : !lookup.fee_dataset?.id ? "Published fees are unavailable. Retry loading fees or contact your administrator."
     : !clientId ? "Select a client before adding fees."
@@ -1360,6 +1359,9 @@ function InvoiceModal(props: any) {
               />
 
 
+              {editingRow !== null && <label>Marks / applications
+                <input className="cart-number" aria-label="Marks / applications" type="number" min="1" max="1000" step="1" value={draftQuantity} onChange={(event) => setDraftQuantity(event.target.value)} />
+              </label>}
               {category === "Trademark" && <>
                 <label>Type of class *
                   <select aria-label="Type of class" value={classType} onChange={(event) => setClassType(event.target.value as ClassType)} disabled={!countryIds.length}>
@@ -1385,17 +1387,22 @@ function InvoiceModal(props: any) {
             </div>
             <div className="fee-preview" aria-live="polite">
               <p>{lookup.fee_dataset ? 'Published fee version ' + lookup.fee_dataset.version_number + (lookup.fee_dataset.published_at ? ' · ' + dateText(lookup.fee_dataset.published_at) : '') : ''}</p>
-              {category === 'Trademark' && <p>Class types follow the selected country. Multi class and bundled fees replace the procedure fee. Trademark class numbers are optional and do not change the ordinal class rates.</p>}
+              {category === 'Trademark' && <p>The first class uses the Trademark fee. Later classes use the selected class-type tab; classes 2 to 3 or 2 to 5 are summed in one row. Class numbers identify your selections; fees follow their order.</p>}
               {category === 'Trademark' && countryIds.length > 0 && !classTypeOptions.length && <p className="fee-missing">No common class pricing is configured for these countries. Select countries with the same available class type.</p>}
-              {selectionFees.length ? <table><thead><tr><th>Country</th><th>Procedure</th><th>Class / fee</th><th>Official (USD)</th><th>Attorney (USD)</th><th>Total (USD)</th></tr></thead><tbody>
+              {selectionFees.length ? <table><thead><tr><th>Country</th><th>Procedure</th><th>Qty</th><th>Class numbers</th><th>Official (USD)</th><th>Attorney (USD)</th><th>VAT (USD)</th><th>Total (USD)</th></tr></thead><tbody>
                 {selectionFees.flatMap((item: { countryId: string; procedureName: string; fee: Fee | null; issue: string }) => {
                   const key = item.countryId + item.procedureName;
                   const country = countries.find((country: Country) => country.id === item.countryId)?.name;
-                  if (!item.fee) return [<tr key={key}><td>{country}</td><td>{item.procedureName}</td><td colSpan={4} className="fee-missing">{item.issue}</td></tr>];
+                  if (!item.fee) return [<tr key={key}><td>{country}</td><td>{item.procedureName}</td><td colSpan={6} className="fee-missing">{item.issue}</td></tr>];
                   const fee = item.fee;
-                  const rows = fee.class_pricing_rows?.length ? fee.class_pricing_rows : [{ ...fee, label: 'Procedure fee' }];
-                  return [...rows.map((row, index) => <tr key={key + index}><td>{country}</td><td>{item.procedureName}</td><td>{row.label}</td><td>{validDraft ? previewMoney(row.official_fee) : '?'}</td><td>{validDraft ? previewMoney(row.attorney_fee) : '?'}</td><td>{validDraft ? previewMoney(row.total_fee) : '?'}</td></tr>),
-                    <tr key={key + '-subtotal'} className="class-pricing-subtotal"><td colSpan={3}>{item.procedureName} subtotal{classType ? ' / ' + classType : ''}</td><td>{validDraft ? previewMoney(fee.official_fee) : '?'}</td><td>{validDraft ? previewMoney(fee.attorney_fee) : '?'}</td><td>{validDraft ? previewMoney(fee.total_fee) : '?'}</td></tr>];
+                  if (!validDraft) return [<tr key={key}><td>{country}</td><td colSpan={7}>Enter a valid quantity to preview fees.</td></tr>];
+                  const vatRate = vatable ? lookup.vat_rates.find((rate: { country_id: string; vat: number }) => rate.country_id === item.countryId)?.vat ?? 0 : 0;
+                  const official = Math.round(fee.official_fee * previewMultiplier * 100) / 100;
+                  const attorney = Math.round(fee.attorney_fee * previewMultiplier * 100) / 100;
+                  const other = Math.round((fee.total_fee * previewMultiplier - official - attorney) * 100) / 100;
+                  const rows = quotationDisplayRows({ quantity: previewMultiplier, class_numbers: category === 'Trademark' ? selectedClassNumbers : [], class_count: classCount, class_pricing_rows: fee.class_pricing_rows, official_fee: official, attorney_fee: attorney, other_fee: other }, vatRate);
+                  return [...rows.map((row, index) => <tr key={key + index}><td>{index === 0 ? country : ''}</td><td>{index === 0 && <strong>{item.procedureName}</strong>}<span className="class-fee-description">{row.label || 'Procedure fee'}</span>{row.source && <small>Fees: {row.source}</small>}</td><td>{row.quantity}</td><td>{category === 'Trademark' ? row.class_numbers.join(', ') || 'Not specified' : '-'}</td><td>{money(row.official_fee)}</td><td>{money(row.attorney_fee)}</td><td>{money(row.vat)}</td><td>{money(row.official_fee + row.attorney_fee + row.other_fee + row.vat)}</td></tr>),
+                    <tr key={key + '-subtotal'} className="class-pricing-subtotal"><td colSpan={4}>{item.procedureName} subtotal{classType ? ' / ' + classType : ''}</td><td>{money(official)}</td><td>{money(attorney)}</td><td>{money(rows.reduce((sum, row) => sum + row.vat, 0))}</td><td>{money(official + attorney + other + rows.reduce((sum, row) => sum + row.vat, 0))}</td></tr>];
                 })}
               </tbody></table> : <p>Select a service, country and procedure to view matching requirements and fees.</p>}
             </div>
@@ -1423,7 +1430,7 @@ function InvoiceModal(props: any) {
                       <th>Country</th>
                       <th>Procedure</th>
                       <th>Qty</th>
-                      <th>No. of Class</th>
+                      <th>Class numbers</th>
                       <th>Official Fee (USD)</th>
                       <th>Attorney Fee (USD)</th>
                       <th>VAT</th>
@@ -1433,30 +1440,24 @@ function InvoiceModal(props: any) {
                     </tr>
                   </thead>
                   <tbody>
-                    {cart.map((item: QuoteItem, index: number) => {
-                      const vat = vatable ? item.attorney_fee * item.vat_rate / 100 : 0;
-                      const rowDiscount = !isClientRole && index === 0 ? discount : 0;
-                      const claimingPriorityFee = item.claiming_priority_fee ?? 0;
-                      const stateFeeTotal = item.state_fee_total ?? 0;
-                      const rowTotal = item.official_fee + item.attorney_fee + item.other_fee + claimingPriorityFee + stateFeeTotal + vat - rowDiscount;
+                    {cart.flatMap((item: QuoteItem, index: number) => {
                       const country = lookup.countries.find((countryItem: Country) => countryItem.id === item.country_id);
-                      return <tr key={`${item.country_id}-${item.procedure_name}-${index}`}>
-                        <td><span className="country-flag-cell">{validFlagUrl(country?.flag_url) ? <img src={validFlagUrl(country?.flag_url)} alt="" /> : null}{country?.name ?? "-"}</span></td>
-                        <td><strong>{item.procedure_name}</strong>{item.class_type && <small><br />{item.class_type}</small>}
-                        <small>
-                          </small>{item.class_numbers?.length ? <small><br />
-                            Classes: {item.class_numbers.join(", ")}
-                            </small> : null}
-                        </td>
-                        <td><input className="cart-number" aria-label={`Quantity for ${item.procedure_name}, row ${index + 1}`} type="number" min="1" max="1000" step="1" readOnly={editingRow !== index} value={editingRow === index ? draftQuantity : item.quantity ?? 1} onChange={(event) => setDraftQuantity(event.target.value)} /></td>
-                        <td>{(editingRow === index ? category : item.category) === "Trademark" ? (editingRow === index ? classCount : item.class_count || item.class_numbers?.length || 1) : "—"}</td>
-                        <td>${money(item.official_fee)}</td>
-                        <td>${money(item.attorney_fee)}</td>
-                        <td>${money(vat)} <small>({item.vat_rate}%)</small></td>
-                        {!isClientRole && <td>${money(rowDiscount)}</td>}
-                        <td><strong>${money(rowTotal)}</strong></td>
-                        <td><div className="cart-row-actions">{editingRow === index ? <><button type="button" className="cart-update" disabled={!validDraft} onClick={updateRow} data-action="update" data-icon-only="true" title="Update"><ActionIcon name="update" /><span className="aipt-action-label">Update</span></button><button type="button" onClick={cancelEdit} data-action="cancel" data-icon-only="true" title="Cancel"><ActionIcon name="cancel" /><span className="aipt-action-label">Cancel</span></button></> : <button type="button" disabled={editingRow !== null} onClick={() => beginEdit(item, index)} data-action="edit" data-icon-only="true" title="Edit"><ActionIcon name="edit" /><span className="aipt-action-label">Edit</span></button>}<button type="button" className="cart-remove" disabled={editingRow !== null} onClick={() => setCart(cart.filter((_: QuoteItem, itemIndex: number) => itemIndex !== index))} data-action="delete" data-icon-only="true" title="Delete"><ActionIcon name="delete" /><span className="aipt-action-label">Delete</span></button></div></td>
-                      </tr>;
+                      const lines = quotationDisplayRows(item, vatable ? item.vat_rate : 0);
+                      return lines.map((line, lineIndex) => {
+                        const rowDiscount = index === 0 && lineIndex === 0 ? discount : 0;
+                        const rowTotal = line.official_fee + line.attorney_fee + line.other_fee + line.vat - rowDiscount;
+                        return <tr key={index + '-' + lineIndex} className={lineIndex === 0 ? 'class-fee-group-start' : 'class-fee-detail'}>
+                          <td>{lineIndex === 0 && <span className="country-flag-cell">{validFlagUrl(country?.flag_url) ? <img src={validFlagUrl(country?.flag_url)} alt="" /> : null}{country?.name ?? '-'}</span>}</td>
+                          <td>{lineIndex === 0 && <strong>{item.procedure_name}</strong>}<span className="class-fee-description">{line.label || item.class_type || 'Procedure fee'}</span>{line.source && <small>Fees: {line.source}</small>}</td>
+                          <td>{line.quantity}</td>
+                          <td>{item.category === 'Trademark' ? line.class_numbers.join(', ') || 'Not specified' : '-'}</td>
+                          <td>$ {money(line.official_fee)}</td><td>$ {money(line.attorney_fee)}</td>
+                          <td>$ {money(line.vat)} <small>({vatable ? item.vat_rate : 0}%)</small></td>
+                          {!isClientRole && <td>$ {money(rowDiscount)}</td>}
+                          <td><strong>$ {money(rowTotal)}</strong>{line.other_fee > 0 && <small className="class-fee-description">Includes other fees: $ {money(line.other_fee)}</small>}</td>
+                          {lineIndex === 0 && <td rowSpan={lines.length}><div className="cart-row-actions">{editingRow === index ? <><button type="button" className="cart-update" disabled={!validDraft} onClick={updateRow} data-action="update" data-icon-only="true" title="Update"><ActionIcon name="update" /><span className="aipt-action-label">Update</span></button><button type="button" onClick={cancelEdit} data-action="cancel" data-icon-only="true" title="Cancel"><ActionIcon name="cancel" /><span className="aipt-action-label">Cancel</span></button></> : <button type="button" disabled={editingRow !== null} onClick={() => beginEdit(item, index)} data-action="edit" data-icon-only="true" title="Edit"><ActionIcon name="edit" /><span className="aipt-action-label">Edit</span></button>}<button type="button" className="cart-remove" disabled={editingRow !== null} onClick={() => setCart(cart.filter((_: QuoteItem, itemIndex: number) => itemIndex !== index))} data-action="delete" data-icon-only="true" title="Delete"><ActionIcon name="delete" /><span className="aipt-action-label">Delete</span></button></div></td>}
+                        </tr>;
+                      });
                     })}
                   </tbody>
                   <tfoot>

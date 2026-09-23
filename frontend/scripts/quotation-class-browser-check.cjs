@@ -41,27 +41,27 @@ const lookup = {
     const type = page.locator('label').filter({ hasText: 'Type of class *' }).locator('select');
     const count = page.locator('label').filter({ hasText: 'Number of classes *' }).locator('select');
     assert.equal(await type.locator('option').count(), 5);
-    for (const [mode, number, rowCount, expected] of [['Per mark per class', 45, 46, '6,750'], ['Multi-class', 4, 5, '120'], ['Up to 3 classes', 5, 4, '90'], ['Up to 5 classes', 7, 4, '90']]) {
+    for (const [mode, number, rowCount, expected] of [['Per mark per class', 45, 46, '6,975'], ['Multi-class', 4, 5, '248'], ['Up to 3 classes', 5, 5, '279'], ['Up to 5 classes', 7, 5, '341']]) {
       await type.selectOption(mode); await count.selectOption(String(number));
       await page.waitForFunction(n => document.querySelectorAll('.fee-preview tbody tr').length === n, rowCount);
       assert.equal(await page.locator('.fee-preview .class-pricing-subtotal td').last().innerText(), expected);
     }
     const output = path.resolve(__dirname, '../../tmp/quotation-class-check'); fs.mkdirSync(output, { recursive: true });
     const picker = page.locator('.trademark-class-selector');
-    for (let number = 1; number <= 7; number++) await picker.getByRole('button', { name: 'Class ' + number, exact: true }).click();
+    for (const number of [1, 2, 5, 7, 9, 15, 30]) await picker.getByRole('button', { name: 'Class ' + number, exact: true }).click();
     assert.equal(await picker.locator('.tm-class-button[aria-pressed="true"]').count(), 7);
     assert.equal(await count.inputValue(), '7');
     assert.equal(await picker.locator('h5').innerText(), 'Selected Classes: 7');
-    assert.deepEqual(await picker.locator('dd').allTextContents(), ['5', '2']);
+    assert.deepEqual(await picker.locator('dd').allTextContents(), ['1', '4', '2']);
     await picker.getByRole('button', { name: 'Class 7', exact: true }).press('Space');
     assert.equal(await count.inputValue(), '6');
     await picker.getByRole('button', { name: 'Class 7', exact: true }).press('Space');
     await picker.screenshot({ path: path.join(output, 'trademark-class-selector-desktop.png') });
     await type.selectOption('Up to 3 classes');
-    assert.deepEqual(await picker.locator('dd').allTextContents(), ['3', '4']);
+    assert.deepEqual(await picker.locator('dd').allTextContents(), ['1', '2', '4']);
     await type.selectOption('Up to 5 classes');
     await picker.getByRole('button', { name: 'View all classes', exact: true }).click();
-    assert.match(await picker.locator('.tm-class-selected-list').innerText(), /Class 1, Class 2, Class 3, Class 4, Class 5, Class 6, Class 7/);
+    assert.match(await picker.locator('.tm-class-selected-list').innerText(), /Class 1, Class 2, Class 5, Class 7, Class 9, Class 15, Class 30/);
     await picker.getByRole('button', { name: 'Hide selected classes', exact: true }).click();
     await picker.getByRole('button', { name: 'Collapse class grid', exact: true }).click();
     assert.equal(await picker.locator('.tm-class-grid').isVisible(), false);
@@ -70,22 +70,24 @@ const lookup = {
     assert.equal(await picker.locator('.tm-class-button[aria-pressed="true"]').count(), 45);
     await picker.getByRole('button', { name: 'Clear selected classes', exact: true }).click();
     assert.equal(await picker.locator('.tm-class-button[aria-pressed="true"]').count(), 0);
-    for (let number = 1; number <= 7; number++) await picker.getByRole('button', { name: 'Class ' + number, exact: true }).click();
+    for (const number of [1, 2, 5, 7, 9, 15, 30]) await picker.getByRole('button', { name: 'Class ' + number, exact: true }).click();
     await page.setViewportSize({ width: 390, height: 844 });
     await picker.screenshot({ path: path.join(output, 'trademark-class-selector-mobile.png') });
     assert.equal(await picker.evaluate(el => el.scrollWidth <= el.clientWidth + 1), true, 'Picker must not overflow on mobile');
     await page.setViewportSize({ width: 1440, height: 1050 });
     await page.locator('.fee-preview').screenshot({ path: path.join(output, 'bundled-preview.png') });
     await page.getByRole('button', { name: 'Add to cart', exact: true }).click();
-    assert.equal(await page.locator('.invoice-cart-table tbody tr').count(), 1);
+    assert.equal(await page.locator('.invoice-cart-table tbody tr').count(), 4);
     assert.match(await page.locator('.invoice-cart-table tbody').innerText(), /Up to 5 classes/);
+    assert.deepEqual(await page.locator('.invoice-cart-table tbody tr td:nth-child(3)').allTextContents(), ['1', '4', '1', '1']);
+    await page.locator('.invoice-cart-table').screenshot({ path: path.join(output, 'reference-class-cart.png') });
     await page.locator('.cart-row-actions button[title="Edit"]').click();
     assert.equal(await type.inputValue(), 'Up to 5 classes'); assert.equal(await count.inputValue(), '7');
     await page.locator('.cart-number').fill('2');
     await page.getByRole('button', { name: 'Update cart item', exact: true }).click();
-    assert.equal(await page.locator('.invoice-cart-table tbody tr').count(), 1);
-    assert.match(await page.locator('.invoice-cart-table tbody').innerText(), /\$120/);
-    assert.match(await page.locator('.invoice-cart-table tbody').innerText(), /\$60/);
+    assert.equal(await page.locator('.invoice-cart-table tbody tr').count(), 4);
+    assert.deepEqual(await page.locator('.invoice-cart-table tbody tr td:nth-child(3)').allTextContents(), ['2', '8', '2', '2']);
+    assert.deepEqual(await page.locator('.invoice-cart-table tbody tr td:nth-child(4)').allTextContents(), ['1', '2, 5, 7, 9', '15', '30']);
     // Country change clears the old class mode and excludes unsupported types.
     await page.getByPlaceholder('Search country', { exact: true }).fill('Test Country B');
     await page.getByRole('checkbox', { name: 'Test Country B', exact: true }).check();
