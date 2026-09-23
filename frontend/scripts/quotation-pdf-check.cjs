@@ -44,9 +44,9 @@ async function main() {
   try {
     const page = await browser.newPage({ viewport: { width: 1170, height: 1500 }, deviceScaleFactor: 1 });
     const qrDataUrl = await QRCode.toDataURL('https://example.invalid/invoice/verify/test-fixture', { width: 250, margin: 2, errorCorrectionLevel: 'H' });
-    for (const variant of ['reference', 'long']) {
-      const data = variant === 'reference' ? invoice : { ...invoice, quotation_items: Array.from({ length: 12 }, (_, i) => ({ ...invoice.quotation_items[0], requirement_ids: ['r' + i], procedure_name: 'Renewal and registration of international trademarks' })), grand_total: 34654, total_vat: 864 };
-      const requirements = variant === 'reference' ? [{ id: 'r1', country_id: 'af', procedure: 'Renewal', description: 'Signed power of attorney.\nCopy of the trademark registration certificate.' }] : data.quotation_items.map((item, i) => ({ id: 'r' + i, country_id: 'af', procedure: item.procedure_name, description: 'Provide a signed power of attorney and the registration certificate.\n' + 'Long requirement text to verify wrapping and printed pagination. '.repeat(5) }));
+    for (const variant of ['reference', 'compact', 'long']) {
+      const data = variant === 'reference' ? invoice : variant === 'compact' ? { ...invoice, quotation_items: Array.from({ length: 4 }, () => ({ ...invoice.quotation_items[0] })), grand_total: 11518, total_vat: 288 } : { ...invoice, quotation_items: Array.from({ length: 12 }, (_, i) => ({ ...invoice.quotation_items[0], requirement_ids: ['r' + i], procedure_name: 'Renewal and registration of international trademarks' })), grand_total: 34654, total_vat: 864 };
+      const requirements = variant !== 'long' ? [{ id: 'r1', country_id: 'af', procedure: 'Renewal', description: 'Signed power of attorney.\nCopy of the trademark registration certificate.' }] : data.quotation_items.map((item, i) => ({ id: 'r' + i, country_id: 'af', procedure: item.procedure_name, description: 'Provide a signed power of attorney and the registration certificate.\n' + 'Long requirement text to verify wrapping and printed pagination. '.repeat(5) }));
       let markup = renderToStaticMarkup(React.createElement(Document, { invoice: data, requirements, qrDataUrl }));
       markup = markup.replace(/src="(\/images\/[^"]+)"/g, (_, src) => 'src="data:image/' + (src.endsWith('.svg') ? 'svg+xml' : 'png') + ';base64,' + fs.readFileSync(path.join(root, 'public', src)).toString('base64') + '"');
       const html = `<!doctype html><html><head><meta charset="utf-8"><style>${styles}</style></head><body><main class="quotation-document">${markup}</main></body></html>`;
@@ -54,12 +54,18 @@ async function main() {
       await page.setContent(html, { waitUntil: 'load' });
       await page.evaluate(async () => { await document.fonts.ready; await Promise.all(Array.from(document.images, image => image.decode())); });
       assert.equal(await page.locator('.quotation-office').count(), 16);
+      for (const section of ['.quotation-requirements', '.quotation-fees']) {
+        const colors = await page.locator(section).evaluate(el => [getComputedStyle(el.querySelector('th')).backgroundColor, getComputedStyle(el.querySelector('td')).backgroundColor]);
+        assert.equal(colors[0], colors[1], 'Table headers match their body background');
+      }
       assert.equal(await page.locator('.quotation-requirements tbody tr').count(), requirements.length);
       const overflows = await page.locator('.quotation-sheet th,.quotation-sheet td,.quotation-meta dd,.quotation-totals,.quotation-due,.quotation-parties,.quotation-sender,.quotation-office p span,.quotation-office h4').evaluateAll(elements => elements.filter(el => el.scrollWidth > el.clientWidth + 2).map(el => el.textContent));
       assert.deepEqual(overflows, [], 'No overflowing table or metadata cells');
-      await page.locator('.quotation-sheet').screenshot({ path: path.join(tmp, variant + '.png') });
-      await page.pdf({ path: path.join(variant === 'reference' ? output : tmp, `quotation-${variant}-preview.pdf`), printBackground: true, preferCSSPageSize: true });
-      console.log(`${variant}: rendered production template; no overflowing table cells`);
+      await page.locator('.quotation-document').screenshot({ path: path.join(tmp, variant + '.png') });
+      const pdfBytes = await page.pdf({ path: path.join(variant === 'reference' ? output : tmp, `quotation-${variant}-preview.pdf`), printBackground: true, preferCSSPageSize: true });
+      const pdf = await require('pdf-lib').PDFDocument.load(pdfBytes);
+      if (variant !== 'long') assert.equal(pdf.getPageCount(), 1, 'Standard quotations fit one A4 page');
+      console.log(`${variant}: ${pdf.getPageCount()} A4 page(s); no overflowing table cells`);
     }
   } finally { await browser.close(); }
 }

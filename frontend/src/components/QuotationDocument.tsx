@@ -39,7 +39,7 @@ export function quotationRequirementRows(invoice: PrintableQuotation, requiremen
 export default function QuotationDocument({ invoice, requirements, qrDataUrl }: { invoice: PrintableQuotation; requirements: QuotationRequirement[]; qrDataUrl: string }) {
   const symbol = invoice.currency === 'USD' ? '$' : invoice.currency;
   const requirementRows = quotationRequirementRows(invoice, requirements);
-  return <article className="quotation-sheet">
+  return <><div className="quotation-footer-frame"><QuotationOfficeFooter /></div><table className="quotation-pagination" role="presentation"><tbody><tr><td><article className="quotation-sheet">
     <header className="quotation-heading">
       <h1>Quotation</h1>
       <div className="quotation-verification">
@@ -65,6 +65,6 @@ export default function QuotationDocument({ invoice, requirements, qrDataUrl }: 
       }))}
     </tbody></table></section>
     <div className="quotation-ending"><section className="quotation-totals"><div><span>Sub Total</span><strong>{symbol} {amount(Number(invoice.grand_total) - Number(invoice.total_vat))}</strong></div><div><span>Total VAT</span><strong>{symbol} {amount(Number(invoice.total_vat))}</strong></div><div className="quotation-due"><span>Total amount due</span><strong>{symbol} {amount(Number(invoice.grand_total))}</strong></div></section>
-    <QuotationOfficeFooter /></div>
-  </article>;
+    </div>
+  </article></td></tr></tbody><tfoot aria-hidden="true"><tr><td><div className="quotation-footer-space" /></td></tr></tfoot></table></>;
 }
