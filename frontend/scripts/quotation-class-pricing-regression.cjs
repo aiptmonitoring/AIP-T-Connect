@@ -71,7 +71,7 @@ vm.runInNewContext(ts.transpileModule(serverSource, { compilerOptions: { target:
   await assert.rejects(() => server.exports.resolveItems(db, [item], 'stale'), /Published fees changed/); checks++;
   await assert.rejects(() => server.exports.resolveItems(db, [{ ...item, class_count: 0 }], 'v1'), /whole-number/); checks++;
   const documentSource = fs.readFileSync(path.resolve(__dirname, '../src/components/QuotationDocument.tsx'), 'utf8').replace(/^import .*;$/gm, '');
-  const printable = { ...sandbox.exports, exports: {}, React: require('react'), toPlainText: value => String(value || '') };
+  const printable = { ...sandbox.exports, exports: {}, React: require('react'), QuotationOfficeFooter: () => null, toPlainText: value => String(value || '') };
   vm.runInNewContext(ts.transpileModule(documentSource, { compilerOptions: { target: ts.ScriptTarget.ES2020, module: ts.ModuleKind.CommonJS, jsx: ts.JsxEmit.React } }).outputText, printable);
   const invoice = { reference_no: 'TEST', invoice_date: '2026-09-21', grand_total: 92, total_vat: 4, discount: 0, currency: 'USD', vatable: true, vat_rate: 10, quotation_items: [result] };
   assert.equal(printable.exports.quotationRow(result, invoice, 0).multiplier, 2); checks++;

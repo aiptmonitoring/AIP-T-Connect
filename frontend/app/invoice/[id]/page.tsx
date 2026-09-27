@@ -1,10 +1,10 @@
 'use client';
-import QuotationDocument from '../../../src/components/QuotationDocument';
+import QuotationPrintView from '../../../src/components/QuotationPrintView';
 import '../quotation-document.css';
 
 import { useEffect, useState } from 'react';
 import { useParams } from 'next/navigation';
-import QRCode from 'qrcode';
+
 import { fetchSupabaseFunction, getSupabaseBrowserClient } from '../../../src/lib/supabase/browser';
 import '../invoice.css';
 
@@ -16,17 +16,10 @@ export default function InvoiceDocumentPage() {
   const params = useParams<{ id: string }>();
   const [invoice, setInvoice] = useState<Invoice | null>(null);
   const [requirements, setRequirements] = useState<Requirement[]>([]);
-  const [qrDataUrl, setQrDataUrl] = useState('');
+
   const [error, setError] = useState('');
   useEffect(() => { let active = true; const load = async () => { try { const supabase = getSupabaseBrowserClient(); if (!supabase) throw Error('Supabase is not configured.'); const { data: { session } } = await supabase.auth.getSession(); if (!session) throw Error('Please sign in.'); const response = await fetchSupabaseFunction(`quotations?page=1&page_size=100&search=${encodeURIComponent(params.id)}`, { headers: { Authorization: `Bearer ${session.access_token}` } }); const body = await response.json().catch(() => ({})); if (!response.ok) throw Error(body.error || 'Unable to load invoice.'); const found = (body.data ?? []).find((item: Invoice) => item.id === params.id); if (!found) throw Error('Invoice not found or not approved.'); const lookupResponse = await fetchSupabaseFunction('quotations?lookup=true', { headers: { Authorization: `Bearer ${session.access_token}` } }); const lookupBody = await lookupResponse.json().catch(() => ({})); if (!lookupResponse.ok) throw Error(lookupBody.error || 'Unable to load invoice requirements.'); if (active) { setRequirements((lookupBody.requirements ?? []).map((requirement: Requirement & { service_id?: string }) => ({ ...requirement, category: (lookupBody.services ?? []).find((service: { id: string; name: string }) => service.id === requirement.service_id)?.name ?? null }))); setInvoice(found); } } catch (cause) { if (active) setError(cause instanceof Error ? cause.message : 'Unable to load invoice.'); } }; if (params.id) void load(); return () => { active = false; }; }, [params.id]);
-  useEffect(() => {
-    if (!invoice) return;
-    const verificationValue = invoice.invoice_verification_token || invoice.id;
-    void QRCode.toDataURL(`${window.location.origin}/invoice/verify/${verificationValue}`, { width: 190, margin: 2, errorCorrectionLevel: 'H' })
-      .then(setQrDataUrl)
-      .catch(() => setQrDataUrl(''));
-  }, [invoice]);
   if (error) return <main className="invoice-document-error">{error}</main>;
   if (!invoice) return <main className="invoice-document-error">Loading invoice...</main>;
-  return <main className="quotation-document"><div className="invoice-document-actions"><button type="button" disabled={!qrDataUrl} onClick={async () => { await document.fonts.ready; await Promise.all(Array.from(document.images).map(image => image.decode().catch(() => undefined))); window.print(); }}>Download / Print PDF</button><button type="button" onClick={() => window.close()}>Close</button></div><QuotationDocument invoice={invoice} requirements={requirements} qrDataUrl={qrDataUrl} /></main>;
+  return <QuotationPrintView invoice={invoice} requirements={requirements} verificationToken={invoice.invoice_verification_token || invoice.id} />;
 }

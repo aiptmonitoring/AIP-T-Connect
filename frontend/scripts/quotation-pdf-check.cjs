@@ -43,17 +43,39 @@ async function main() {
   const browser = await chromium.launch({ executablePath: 'C:/Program Files/Google/Chrome/Application/chrome.exe', headless: true });
   try {
     const page = await browser.newPage({ viewport: { width: 1170, height: 1500 }, deviceScaleFactor: 1 });
-    const qrDataUrl = await QRCode.toDataURL('https://example.invalid/invoice/verify/test-fixture', { width: 250, margin: 2, errorCorrectionLevel: 'H' });
-    for (const variant of ['reference', 'compact', 'long']) {
-      const data = variant === 'reference' ? invoice : variant === 'compact' ? { ...invoice, quotation_items: Array.from({ length: 4 }, () => ({ ...invoice.quotation_items[0] })), grand_total: 11518, total_vat: 288 } : { ...invoice, quotation_items: Array.from({ length: 12 }, (_, i) => ({ ...invoice.quotation_items[0], requirement_ids: ['r' + i], procedure_name: 'Renewal and registration of international trademarks' })), grand_total: 34654, total_vat: 864 };
-      const requirements = variant !== 'long' ? [{ id: 'r1', country_id: 'af', procedure: 'Renewal', description: 'Signed power of attorney.\nCopy of the trademark registration certificate.' }] : data.quotation_items.map((item, i) => ({ id: 'r' + i, country_id: 'af', procedure: item.procedure_name, description: 'Provide a signed power of attorney and the registration certificate.\n' + 'Long requirement text to verify wrapping and printed pagination. '.repeat(5) }));
-      let markup = renderToStaticMarkup(React.createElement(Document, { invoice: data, requirements, qrDataUrl }));
+    const qrDataUrl = await QRCode.toDataURL('https://example.invalid/invoice/verify/0123456789abcdef0123456789abcdef0123456789abcdef', { width: 480, margin: 4, errorCorrectionLevel: 'H' });
+    for (const variant of ['reference', 'compact', 'long', 'design', 'discount-only', 'vat-only', 'neither']) {
+      let data = variant === 'reference' ? invoice : variant === 'compact' ? { ...invoice, quotation_items: Array.from({ length: 4 }, () => ({ ...invoice.quotation_items[0] })), grand_total: 11518, total_vat: 288 } : { ...invoice, quotation_items: Array.from({ length: 12 }, (_, i) => ({ ...invoice.quotation_items[0], requirement_ids: ['r' + i], procedure_name: 'Renewal and registration of international trademarks' })), grand_total: 34654, total_vat: 864 };
+      if (['discount-only', 'vat-only', 'neither'].includes(variant)) {
+        const discount = variant === 'discount-only' ? 50 : 0;
+        const total_vat = variant === 'vat-only' ? 72 : 0;
+        data = { ...invoice, discount, total_vat, vatable: total_vat > 0, grand_total: 2820 - discount + total_vat };
+      }
+      if (variant === 'design') data = {
+        ...invoice, reference_no: 'T-2026-SAMPLE-CY', invoice_date: '2026-09-23', client_matter_ref: '79',
+        valid_until: '2026-10-23T09:00:00.000Z', client: { company_name: 'Sample quotation client', address: 'Office 10, Bldg. 03, South of Manarat\nAl Riyadh School, Exit 8' },
+        discount: 0, total_vat: 0, vatable: false, grand_total: 2415,
+        quotation_items: [{ country_id: 'cy', category: 'Trademark', procedure_name: 'Registration', quantity: 1,
+          class_numbers: [1, 8, 14, 22, 26, 31, 33], official_fee: 1225, attorney_fee: 1190, other_fee: 0, country: { name: 'Cyprus' },
+          class_pricing_rows: Array.from({length: 7}, (_, i) => ({label: i === 0 ? '1st class' : (i === 1 ? '2nd class' : i === 2 ? '3rd class' : (i + 1) + 'th class'), class_from: i + 1, class_to: i + 1, official_fee: 175, attorney_fee: 170, total_fee: 345, currency: 'USD', source: 'Trademark'})) }]
+      };
+      let requirements = variant !== 'long' ? [{ id: 'r1', country_id: 'af', procedure: 'Renewal', description: 'Signed power of attorney.\nCopy of the trademark registration certificate.' }] : data.quotation_items.map((item, i) => ({ id: 'r' + i, country_id: 'af', procedure: item.procedure_name, description: 'Provide a signed power of attorney and the registration certificate.\n' + 'Long requirement text to verify wrapping and printed pagination. '.repeat(5) }));
+      if (variant === 'design') requirements = [{ id: 'cy-requirement', country_id: 'cy', category: 'Trademark', procedure: 'Registration', description: 'Trademark Application Requirements in Cyprus:\n* Information of the applicant: name, address, and nationality.\n* A signed POA.\n* Classes and specifications of Goods/Services.\n* Priority document (if claiming priority).\n* Mark representation (Logo).\n* Passport copy (if applicant is an individual).' }];
+      let markup = renderToStaticMarkup(React.createElement(Document, { invoice: data, requirements, qrDataUrl, verificationUrl: 'https://example.invalid/invoice/verify/0123456789abcdef0123456789abcdef0123456789abcdef' }));
       markup = markup.replace(/src="(\/images\/[^"]+)"/g, (_, src) => 'src="data:image/' + (src.endsWith('.svg') ? 'svg+xml' : 'png') + ';base64,' + fs.readFileSync(path.join(root, 'public', src)).toString('base64') + '"');
       const html = `<!doctype html><html><head><meta charset="utf-8"><style>${styles}</style></head><body><main class="quotation-document">${markup}</main></body></html>`;
       fs.writeFileSync(path.join(tmp, variant + '.html'), html);
       await page.setContent(html, { waitUntil: 'load' });
       await page.evaluate(async () => { await document.fonts.ready; await Promise.all(Array.from(document.images, image => image.decode())); });
       assert.equal(await page.locator('.quotation-office').count(), 16);
+      const showDiscount = data.discount !== 0, showVat = data.total_vat !== 0;
+      assert.equal(await page.locator('.quotation-fees th').filter({hasText: /^Discount/}).count(), Number(showDiscount));
+      assert.equal(await page.locator('.quotation-fees th').filter({hasText: /^VAT/}).count(), Number(showVat));
+      assert.equal(await page.locator('.quotation-totals > div').filter({hasText: 'Total VAT'}).count(), Number(showVat));
+      assert.equal(await page.locator('.quotation-fees th').count(), 6 + Number(showDiscount) + Number(showVat));
+      assert.equal(await page.locator('.quotation-fees tbody tr:first-child td').count(), 6 + Number(showDiscount) + Number(showVat));
+      assert.equal(await page.locator('.quotation-qr').getAttribute('href'), 'https://example.invalid/invoice/verify/0123456789abcdef0123456789abcdef0123456789abcdef');
+      assert.equal(await page.locator('.quotation-logo').count(), 1);
       for (const section of ['.quotation-requirements', '.quotation-fees']) {
         const colors = await page.locator(section).evaluate(el => [getComputedStyle(el.querySelector('th')).backgroundColor, getComputedStyle(el.querySelector('td')).backgroundColor]);
         assert.equal(colors[0], colors[1], 'Table headers match their body background');
@@ -62,7 +84,7 @@ async function main() {
       const overflows = await page.locator('.quotation-sheet th,.quotation-sheet td,.quotation-meta dd,.quotation-totals,.quotation-due,.quotation-parties,.quotation-sender,.quotation-office p span,.quotation-office h4').evaluateAll(elements => elements.filter(el => el.scrollWidth > el.clientWidth + 2).map(el => el.textContent));
       assert.deepEqual(overflows, [], 'No overflowing table or metadata cells');
       await page.locator('.quotation-document').screenshot({ path: path.join(tmp, variant + '.png') });
-      const pdfBytes = await page.pdf({ path: path.join(variant === 'reference' ? output : tmp, `quotation-${variant}-preview.pdf`), printBackground: true, preferCSSPageSize: true });
+      const pdfBytes = await page.pdf({ path: path.join(variant === 'design' ? output : tmp, `quotation-${variant}-preview.pdf`), printBackground: true, preferCSSPageSize: true });
       const pdf = await require('pdf-lib').PDFDocument.load(pdfBytes);
       if (variant !== 'long') assert.equal(pdf.getPageCount(), 1, 'Standard quotations fit one A4 page');
       console.log(`${variant}: ${pdf.getPageCount()} A4 page(s); no overflowing table cells`);

@@ -50,6 +50,21 @@ async function allRows(query: () => any) {
   }
 }
 
+// Return only requirements belonging to the verified quotation, never the full catalog.
+async function loadQuotationRequirements(db: any, items: any[]) {
+  const countries = [...new Set(items.map(item => item.country_id))];
+  if (!countries.length) return [];
+  const { data } = await allRows(() => db.from('requirements')
+    .select('id,country_id,description,procedures!inner(description,services!inner(service))')
+    .in('country_id', countries).is('deleted_at', null).order('id'));
+  return data.flatMap((row: any) => {
+    const procedure = row.procedures?.description;
+    const category = row.procedures?.services?.service;
+    const relevant = items.some(item => item.country_id === row.country_id && item.procedure_name === procedure && (!item.category || item.category === category) && (!item.requirement_ids?.length || item.requirement_ids.includes(row.id)));
+    return relevant ? [{ id: row.id, country_id: row.country_id, procedure, category, description: toPlainText(row.description) }] : [];
+  });
+}
+
 function feePricing(row: any) {
   const parse = (value: unknown) => value === null || value === undefined || value === '' ? null : Number(value);
   const official = parse(row.official_fee);
@@ -241,7 +256,7 @@ Deno.serve(async (request) => {
       const { data, error } = await lookup.eq('status', 'Approved').is('deleted_at', null).maybeSingle();
       if (error) throw error;
       if (!data) return json({ error: 'Invoice verification record not found.' }, 404);
-      return json(withQuotationValidity(data));
+      return json({ ...withQuotationValidity(data), requirements: await loadQuotationRequirements(db, data.quotation_items ?? []) });
     }
     const { db, user, profile } = await context(request);
     const url = new URL(request.url);
