@@ -26,6 +26,7 @@ import './table-controls.css';
 import './management-workspace.css';
 import './client-home.css';
 import './client-card-headers.css';
+import './client-reference.css';
 import AdminAppShell from '../src/components/AdminAppShell';
 
 export const metadata: Metadata = {

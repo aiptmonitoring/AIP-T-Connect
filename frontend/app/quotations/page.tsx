@@ -859,7 +859,7 @@ export default function QuotationsPage() {
                           type="button"
                           onClick={() => openEdit(quote)}
                           disabled={["Approved", "Posted", "Cancelled"].includes(quote.status)}
-                         data-action="edit" data-icon-only="true" title="Edit"><ActionIcon name="edit" /><span className="aipt-action-label">Edit</span></button>}
+                         data-action="edit" data-icon-only={isClientRole ? undefined : "true"} title="Edit quotation"><ActionIcon name="edit" /><span className="aipt-action-label">{isClientRole ? "Edit & update" : "Edit"}</span></button>}
                         {!isClientRole && <button
                           type="button"
                           onClick={() => {

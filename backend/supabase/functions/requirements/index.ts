@@ -32,6 +32,12 @@ Deno.serve(async (request) => {
       return result.data ? json(normalize(result.data)) : json({ error: 'Requirement not found.' }, 404);
     }
     if (request.method === 'GET') {
+      // The client filter catalogue is loaded once, instead of sequentially loading pages.
+      if (url.searchParams.get('catalog') === 'true') {
+        const result = await db.from('requirements').select(select).is('deleted_at', null).order('created_at', { ascending: false }).limit(1000);
+        if (result.error) throw result.error;
+        return json({ data: (result.data ?? []).map(normalize) });
+      }
       const page = Math.max(1, Number(url.searchParams.get('page') ?? 1));
       const size = Math.min(100, Math.max(1, Number(url.searchParams.get('page_size') ?? 10)));
       const search = (url.searchParams.get('search') ?? '').trim();
