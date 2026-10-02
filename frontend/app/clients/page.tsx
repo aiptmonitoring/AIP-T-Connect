@@ -945,7 +945,7 @@ export default function ClientsPage() {
         </header>
 
         <div className="clients-heading">
-          <div><h1>Clients</h1><p>Manage client records and their intellectual property applications.</p></div>
+          <div><h1>Clients</h1></div>
           <div className="clients-actions"><button type="button" className="danger" data-action="delete" onClick={() => void prepareDeleteAllClients()} disabled={loading || deleting || bulkPreparing || bulkDeleting}><ActionIcon name="delete" /><span className="aipt-action-label">Delete All Clients</span></button><ClientDataActions search={search} onComplete={setNotice} onError={setPageError} onRefresh={() => setClientRefreshKey((value) => value + 1)} /><button type="button" className="invite-client-user" onClick={() => setInviteClientUserOpen(true)}>Invite Client User</button><button type="button" className="client-refresh" onClick={() => void loadPageData()} disabled={loading} data-action="refresh" title="Refresh"><ActionIcon name="refresh" /><span className="aipt-action-label">Refresh</span></button><button className="add-client" type="button" onClick={() => openClientModal("add")} data-action="add" title="Add New Client"><ActionIcon name="add" /><span className="aipt-action-label">Add New Client</span></button></div>
         </div>
 

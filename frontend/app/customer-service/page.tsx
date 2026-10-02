@@ -265,7 +265,6 @@ export default function CustomerServicePage() {
       <section className="customer-heading">
         <div>
           <h1>◉ Customer Service</h1>
-          <p>Client concerns and inquiries</p>
         </div>
         <div className="customer-stats">
           <span>

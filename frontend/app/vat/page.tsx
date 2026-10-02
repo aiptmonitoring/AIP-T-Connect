@@ -106,7 +106,7 @@ export default function VatPage() {
   return <main className="countries-page vat-page">
     <section className="countries-content">
       <header className="countries-topbar"><p>Home <i>/</i> <b>VAT</b></p><div className="country-user"><span>MS</span><p><b>Mohammad Saleh</b><small>Administrator</small></p></div></header>
-      <div className="countries-heading"><div><h1>VAT</h1><p>Manage VAT rates by country.</p></div><button className="country-add" type="button" onClick={openAdd} data-action="add" title="Add VAT"><ActionIcon name="add" /><span className="aipt-action-label">Add VAT</span></button></div>
+      <div className="countries-heading"><div><h1>VAT</h1></div><button className="country-add" type="button" onClick={openAdd} data-action="add" title="Add VAT"><ActionIcon name="add" /><span className="aipt-action-label">Add VAT</span></button></div>
       {notice && <div className="country-toast">{notice}<button type="button" onClick={() => setNotice('')}>×</button></div>}
       {error && !modal && <p className="country-page-error">{error}</p>}
       <section className="country-table-card"><header><h2>VAT Table Data</h2><label className="country-search">⌕<input value={query} onChange={(event) => setQuery(event.target.value)} placeholder="Search countries..." /></label></header>

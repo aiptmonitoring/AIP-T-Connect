@@ -555,7 +555,6 @@ export default function ProjectsPage() {
         <section className="clients-heading">
           <div>
             <h1>Projects</h1>
-            <p>Manage and track all IP projects across different services.</p>
           </div>
           <div className="project-heading-actions">
             <button className="add-client" type="button" onClick={() => open()} data-action="add" title="Add Project"><ActionIcon name="add" /><span className="aipt-action-label">Add Project</span></button>

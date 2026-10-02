@@ -1,0 +1,104 @@
+{
+  "Version": "2012-10-17",
+  "Statement": [
+    {
+      "Sid": "BucketAccess",
+      "Effect": "Allow",
+      "Action": [
+        "s3:GetBucketLocation",
+        "s3:ListBucket"
+      ],
+      "Resource": "arn:aws:s3:::aiptuploaddocument"
+    },
+    {
+      "Sid": "ProjectImageAccess",
+      "Effect": "Allow",
+      "Action": [
+        "s3:PutObject",
+        "s3:GetObject"
+      ],
+      "Resource": "arn:aws:s3:::aiptuploaddocument/projects/images/*"
+    },
+    {
+      "Sid": "NotificationDocumentAccess",
+      "Effect": "Allow",
+      "Action": [
+        "s3:PutObject",
+        "s3:GetObject",
+        "s3:DeleteObject"
+      ],
+      "Resource": "arn:aws:s3:::aiptuploaddocument/notifications/*"
+    },
+    {
+      "Sid": "StatementDocumentAccess",
+      "Effect": "Allow",
+      "Action": [
+        "s3:PutObject",
+        "s3:GetObject",
+        "s3:DeleteObject"
+      ],
+      "Resource": "arn:aws:s3:::aiptuploaddocument/statements/*"
+    },
+    {
+      "Sid": "CompanyLogoAccess",
+      "Effect": "Allow",
+      "Action": [
+        "s3:PutObject",
+        "s3:GetObject",
+        "s3:DeleteObject"
+      ],
+      "Resource": "arn:aws:s3:::aiptuploaddocument/logo_company/*"
+    },
+    {
+      "Sid": "TimelineAccess",
+      "Effect": "Allow",
+      "Action": [
+        "s3:PutObject",
+        "s3:GetObject",
+        "s3:DeleteObject"
+      ],
+      "Resource": "arn:aws:s3:::aiptuploaddocument/timelines/*"
+    },
+    {
+      "Sid": "CustomerSupportAccess",
+      "Effect": "Allow",
+      "Action": [
+        "s3:PutObject",
+        "s3:GetObject",
+        "s3:DeleteObject"
+      ],
+      "Resource": "arn:aws:s3:::aiptuploaddocument/customer_support/*"
+    },
+    {
+      "Sid": "SESSendEmail",
+      "Effect": "Allow",
+      "Action": [
+        "ses:SendEmail"
+      ],
+      "Resource": [
+        "arn:aws:ses:eu-north-1:104050870341:identity/info@aiptlaw.com",
+        "arn:aws:ses:eu-north-1:104050870341:configuration-set/my-first-configuration-set"
+      ]
+    },
+    {
+      "Sid": "POADocumentAccess",
+      "Effect": "Allow",
+      "Action": [
+        "s3:PutObject",
+        "s3:GetObject",
+        "s3:DeleteObject"
+      ],
+      "Resource": "arn:aws:s3:::aiptuploaddocument/aiptPOA/*"
+    },
+    {
+      "Sid": "ScheduleOfFeesAccess",
+      "Effect": "Allow",
+      "Action": [
+        "s3:PutObject",
+        "s3:GetObject",
+        "s3:DeleteObject"
+      ],
+      "Resource": "arn:aws:s3:::aiptuploaddocument/aiptschedule_of_fees/*"
+    }
+  ]
+}

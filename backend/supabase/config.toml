@@ -36,3 +36,9 @@ verify_jwt = false
 
 [functions.fee-config-check]
 verify_jwt = false
+
+[functions.poa]
+verify_jwt = false
+
+[functions.schedule-of-fees]
+verify_jwt = false

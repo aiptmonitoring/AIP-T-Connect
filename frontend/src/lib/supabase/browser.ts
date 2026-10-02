@@ -46,14 +46,15 @@ export async function getActiveSession() {
   return session;
 }
 
-export async function fetchSupabaseFunction(path: string, init: RequestInit = {}) {
+export async function fetchSupabaseFunction(path: string, init: RequestInit & { timeoutMs?: number } = {}) {
+  const { timeoutMs = 15000, ...requestInit } = init;
   const controller = new AbortController();
   // Preserve the service timeout when a caller also cancels obsolete requests.
   const externalSignal = init.signal;
   const cancelRequest = () => controller.abort();
   if (externalSignal?.aborted) controller.abort();
   else externalSignal?.addEventListener("abort", cancelRequest, { once: true });
-  const timeout = window.setTimeout(() => controller.abort(), 15000);
+  const timeout = window.setTimeout(() => controller.abort(), timeoutMs);
   const headers = new Headers(init.headers);
 
   const supabase = getSupabaseBrowserClient();
@@ -68,12 +69,12 @@ export async function fetchSupabaseFunction(path: string, init: RequestInit = {}
   // Do not inject the anon/publishable key here; that creates an auth mismatch and
   // triggers incorrect CORS preflight behavior for browser calls to Supabase functions.
   try {
-    let response = await fetch(getSupabaseFunctionUrl(path), { ...init, headers, signal: controller.signal, cache: 'no-store' });
+    let response = await fetch(getSupabaseFunctionUrl(path), { ...requestInit, headers, signal: controller.signal, cache: 'no-store' });
     if (response.status === 401 && supabase) {
       const { data, error } = await supabase.auth.refreshSession();
       if (!error && data.session?.access_token) {
         headers.set('Authorization', `Bearer ${data.session.access_token}`);
-        response = await fetch(getSupabaseFunctionUrl(path), { ...init, headers, signal: controller.signal, cache: 'no-store' });
+        response = await fetch(getSupabaseFunctionUrl(path), { ...requestInit, headers, signal: controller.signal, cache: 'no-store' });
       }
     }
     // A 403 is a valid authorization decision (for example, a client opening

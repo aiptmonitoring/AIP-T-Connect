@@ -274,7 +274,6 @@ export default function Overview() {
       <div>
         <p className="overview-kicker">PORTFOLIO INTELLIGENCE</p>
         <h1>Overview</h1>
-        <p className="overview-subtitle">Live client-application activity for the selected reporting day.</p>
       </div>
       <div className="overview-heading-actions">
         <label className="overview-day-control">Reporting day<input type="date" value={day} onChange={(event) => { setDay(event.target.value); setPage(1); }} /></label>
@@ -292,7 +291,6 @@ export default function Overview() {
     <section className="overview-analytics">
       <article className="overview-panel overview-project-performance">
         <header className="overview-panel-header">
-          <div><h2>Project Performance</h2><p>Lifecycle events grouped by month.</p></div>
           <label className="overview-select-control">Period<select value={months} onChange={(event) => { setMonths(Number(event.target.value)); setPage(1); }}><option value={6}>Last 6 months</option><option value={12}>Last 12 months</option><option value={24}>Last 24 months</option></select></label>
         </header>
         <div className="overview-legend" aria-label="Chart legend"><span><i className="legend-filed" />Filed</span><span><i className="legend-accepted" />Accepted</span><span><i className="legend-opposition" />Opposition</span><span><i className="legend-registered" />Registered</span></div>
@@ -315,7 +313,7 @@ export default function Overview() {
 
     <section className="overview-panel overview-sync-history" aria-busy={syncLoading}>
       <header className="overview-panel-header">
-        <div><h2>Fee Sync Updates</h2><p>Recorded worksheet progress and overall result for each synchronization run.</p></div>
+        <div><h2>Fee Sync Updates</h2></div>
         <button type="button" className="overview-button overview-button-secondary" onClick={() => void loadFeeSyncHistory()} disabled={syncLoading} data-action="refresh" title="Refresh"><ActionIcon name="refresh" /><span className="aipt-action-label">Refresh</span></button>
       </header>
       {syncError && <p role="alert">{syncError}</p>}
@@ -333,7 +331,7 @@ export default function Overview() {
 
     <section className="overview-panel overview-recent-projects">
       <header className="overview-panel-header overview-recent-header">
-        <div><h2>Recent Client Applications</h2><p>Most recently updated applications, including their latest recorded procedure.</p></div>
+        <div><h2>Recent Client Applications</h2></div>
         <div className="overview-recent-actions"><label className="overview-search"><span>Search</span><input value={search} onChange={(event) => { setSearch(event.target.value); setPage(1); }} placeholder="Client, project or reference…" /></label><a className="overview-button overview-button-secondary" href="/clients">View applications <Icon name="arrow" /></a></div>
       </header>
       <div className="overview-table-scroll"><table className="overview-table"><thead><tr><th>Application</th><th>Client</th><th>Country</th><th>Procedure</th><th>Status</th><th>Filing Date</th><th>Latest activity</th></tr></thead><tbody>
@@ -375,7 +373,7 @@ function BusinessPerformance({ summary, loading }: { summary: DashboardSummary |
     { label: 'Registration rate', data: rates?.registration_rate, tone: 'registered' },
   ] as const;
   return <article className="overview-panel overview-business-performance">
-    <header className="overview-panel-header"><div><h2>Business Performance</h2><p>Portfolio activity and lifecycle rates for the selected month.</p></div></header>
+    <header className="overview-panel-header"><div><h2>Business Performance</h2></div></header>
     <div className="overview-business-metrics">
       <BusinessMetric label="Active clients" value={portfolio?.active_clients} loading={loading} />
       <BusinessMetric label="Active applications" value={portfolio?.active_projects} loading={loading} />

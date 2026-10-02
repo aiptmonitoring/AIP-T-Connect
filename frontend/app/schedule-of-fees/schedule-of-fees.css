@@ -1,0 +1,14 @@
+.schedule-fees-page .poa-results-panel{margin-top:3px;padding:9px 10px 10px;border-radius:6px;background:linear-gradient(112deg,#f3fdff,#e6fbff);box-shadow:none}
+.schedule-fees-table th:first-child{width:42%}
+.schedule-fees-table th:nth-child(2){width:20%}
+.schedule-fees-table th:nth-child(3){width:14%}
+.schedule-fees-table th:last-child{width:24%}
+.schedule-fees-page .schedule-fees-toolbar{min-height:32px;margin-bottom:9px;padding:0}
+.schedule-fees-page .poa-table-search{width:290px;height:29px;flex:none}
+.schedule-fees-page .admin-poa-add{height:32px;padding:0 13px}
+.schedule-fees-page .schedule-fees-table th{height:29px;font-size:10px}
+.schedule-fees-page .schedule-fees-table td{height:36px;font-size:10px}
+.schedule-fees-page .poa-download-button{width:28px;height:25px;margin:0 3px;min-height:25px!important;padding:3px!important}
+.schedule-fees-page .poa-pagination{min-height:44px;padding-top:8px;font-size:9px}
+.schedule-fees-page .poa-pagination nav button,.schedule-fees-page .poa-pagination nav span{height:36px}
+@media(max-width:767px){.schedule-fees-page .schedule-fees-table{min-width:690px}.schedule-fees-page .schedule-fees-toolbar{flex-wrap:wrap}.schedule-fees-page .poa-table-search{width:100%;flex:1 1 220px}.schedule-fees-page .schedule-fees-table th:last-child,.schedule-fees-page .schedule-fees-table td:last-child{position:sticky;right:0;box-shadow:-3px 0 6px #12333d12}}

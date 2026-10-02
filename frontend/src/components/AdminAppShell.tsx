@@ -1,4 +1,5 @@
 'use client';
+import AdminDashboardHeader from './AdminDashboardHeader';
 
 import { usePathname } from 'next/navigation';
 import { useEffect, useState, type ReactNode } from 'react';
@@ -24,6 +25,8 @@ const adminRoutes = new Set([
   '/customer-service',
   '/users',
   '/statements',
+  '/poa',
+  '/schedule-of-fees',
   '/admin-account',
 ]);
 
@@ -114,5 +117,5 @@ export default function AdminAppShell({ children }: { children: ReactNode }) {
 
   if (!adminRoutes.has(pathname)) return <>{children}{welcomeToast}</>;
 
-  return <><div className="admin-app-shell"><AdminSidebar />{children}</div>{welcomeToast}{idleNotice}</>;
+  return <><div className="admin-app-shell"><AdminSidebar /><div className="admin-dashboard-content"><AdminDashboardHeader />{children}</div></div>{welcomeToast}{idleNotice}</>;
 }

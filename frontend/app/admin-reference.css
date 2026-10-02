@@ -1,0 +1,64 @@
+.admin-poa-dashboard-header{display:flex;align-items:center;gap:19px;height:64px;padding:0 18px;border-bottom:1px solid #b9f0f8;background:linear-gradient(110deg,#f0fcfe,#f4fdfe);color:#00b5d4}
+.admin-poa-brand{display:flex;flex:none;flex-direction:column;align-items:center;justify-content:center;width:177px;height:36px;padding-right:23px;border-right:1px solid #68def0;text-decoration:none;color:#00b5d4}
+.admin-poa-brand>span{font:700 32px Georgia,"Times New Roman",serif;letter-spacing:.5px;line-height:29px}
+.admin-poa-brand>small{font:700 8px Arial,Helvetica,sans-serif;letter-spacing:1.55px;white-space:nowrap;line-height:12px}
+.admin-poa-dashboard-header nav{display:flex;align-items:center;gap:14px;font-size:13px;white-space:nowrap}
+.admin-poa-dashboard-header nav a{display:flex;align-items:center;gap:14px;text-decoration:none;color:#00b5d4}
+.admin-poa-dashboard-header nav svg{width:23px;height:23px;fill:none;stroke:currentColor;stroke-width:2;stroke-linecap:round;stroke-linejoin:round}
+.admin-poa-breadcrumb-current{font-weight:700}
+.admin-poa-header-account{display:flex;align-items:center;gap:10px;margin-left:auto;min-width:0}
+.admin-poa-profile-link{display:grid;place-items:center;width:37px;height:37px;flex:none;border:1px solid #79e1f0;border-radius:50%;color:#00b5d4}
+.admin-poa-profile-link svg{width:21px;height:21px;fill:none;stroke:currentColor;stroke-width:1.8;stroke-linecap:round;stroke-linejoin:round}
+.admin-poa-dashboard-header .admin-poa-account{width:auto;max-width:240px}
+.admin-poa-account .account-menu-trigger{gap:9px;color:#00b5d4;padding:0;border:0;background:transparent;box-shadow:none}
+.admin-poa-account .account-menu-avatar{width:36px;height:36px;flex-basis:36px;background:#d3f7fc;color:#00b5d4}
+.admin-poa-account .account-menu-summary b{font-size:10px;font-weight:600;max-width:180px}
+.admin-poa-account .account-menu-summary small{font-size:9px;color:#00b5d4;max-width:180px}
+.admin-poa-account .account-menu-chevron{display:none}
+.admin-poa-account .account-menu-popover{top:calc(100% + 10px);bottom:auto;right:0;left:auto}
+@media(max-width:1023px){.admin-poa-dashboard-header{gap:12px;padding:0 10px}.admin-poa-brand{width:145px;padding-right:12px}.admin-poa-brand>span{font-size:28px}.admin-poa-brand>small{font-size:7px;letter-spacing:1.1px}.admin-poa-dashboard-header nav,.admin-poa-dashboard-header nav a{gap:8px}.admin-poa-profile-link{display:none}.admin-poa-account .account-menu-summary b,.admin-poa-account .account-menu-summary small{max-width:120px}}
+@media(max-width:767px){.admin-poa-dashboard-header{height:auto;min-height:100px;flex-wrap:wrap;padding:10px 8px 10px 50px;gap:10px}.admin-poa-brand{width:128px;border:0;padding:0}.admin-poa-dashboard-header nav{font-size:11px;margin-left:auto}.admin-poa-dashboard-header nav svg{width:18px;height:18px}.admin-poa-header-account{margin-left:auto}.admin-poa-account .account-menu-summary b,.admin-poa-account .account-menu-summary small{max-width:170px}}
+/* Shared reference theme, scoped to the administrator workspace. */
+.admin-dashboard-content{flex:1 1 auto;min-width:0;padding:4px 7px;background:#fff;font-family:Arial,Helvetica,sans-serif;color:#078da7}
+.admin-dashboard-content>main{min-width:0;max-width:none;margin:0;font-family:inherit}
+.admin-app-shell .admin-dashboard-content :is(.countries-topbar,.clients-topbar,.services-topbar){display:none!important}
+.admin-app-shell .admin-dashboard-content :is(.clients-content,.countries-content,.services-content){min-width:0;padding:12px 10px}
+.admin-app-shell .admin-dashboard-content :is(.procedure-page,.fees-page,.overview-page,.customer-service-page){padding:12px 10px;background:#f0fcfe}
+.admin-app-shell .admin-dashboard-content :is(.clients-heading,.countries-heading,.services-heading,.fees-heading,.customer-heading,.overview-heading){margin:0 0 12px;padding:10px 12px;border:1px solid #a4edf7;border-radius:6px;background:#26a9c5!important;color:#fff!important}
+.admin-app-shell .admin-dashboard-content :is(.clients-heading,.countries-heading,.services-heading,.fees-heading,.customer-heading,.overview-heading) :is(h1,h2,p){color:#fff!important}
+.admin-app-shell .admin-dashboard-content :is(.clients-heading,.countries-heading,.services-heading,.fees-heading,.customer-heading,.overview-heading) h1{font:700 20px Arial,Helvetica,sans-serif;margin:0}
+.admin-app-shell .admin-dashboard-content :is(.clients-table-card,.country-table-card,.services-card,.fees-table-card,.overview-panel,.overview-kpi,.conversation-list,.conversation-panel,.customer-details,.sync-controls-container,.status-card){border:1px solid #a4edf7!important;border-radius:6px!important;background:#f0fcfe!important;box-shadow:none!important}
+.admin-app-shell .admin-dashboard-content :is(.overview-panel-header,.sync-header,.account-modal>header,.admin-poa-dialog>header){background:#26a9c5!important;color:#fff!important;border-bottom:1px solid #a4edf7}
+.admin-app-shell .admin-dashboard-content :is(.overview-panel-header,.sync-header,.account-modal>header,.admin-poa-dialog>header) :is(h1,h2,h3,p,button){color:#fff!important}
+.admin-app-shell .admin-dashboard-content table:not(.quotation-document table){font-family:Arial,Helvetica,sans-serif;color:#2184a1;font-size:11px}
+.admin-app-shell .admin-dashboard-content :is(.clients-table-card,.country-table-card,.services-card,.fees-table-card) th{background:#d8f8fc!important;color:#1888a1!important;text-transform:none!important;letter-spacing:normal!important;font-size:11px!important;padding:9px 12px!important;border-color:#a8edf6!important}
+.admin-app-shell .admin-dashboard-content :is(.clients-table-card,.country-table-card,.services-card,.fees-table-card) td{background:#f0fcfe!important;border-color:#a8edf6!important;padding:9px 12px!important}
+.admin-app-shell .admin-dashboard-content :is(input:not([type=checkbox]):not([type=radio]),select,textarea){border-color:#9debf6;border-radius:6px;font-family:Arial,Helvetica,sans-serif}
+.admin-app-shell .admin-dashboard-content :is(button,a)[data-action]{border-radius:5px!important;box-shadow:none!important;font-family:Arial,Helvetica,sans-serif!important}
+.admin-app-shell .admin-dashboard-content :is(button,a):is([data-action=add],[data-action=upload],[data-action=update],[data-action=save],.poa-download-all){background:#00a8c1!important;border-color:#00a8c1!important;color:#fff!important}
+.admin-app-shell .admin-dashboard-content :is(button,a):is([data-action=edit],[data-action=download],.poa-download-button:not(.admin-poa-delete)){background:#f7feff!important;border:1px solid #8be2f0!important;color:#078da7!important;box-shadow:none!important}
+.admin-app-shell .admin-dashboard-content :is(button,a):is([data-action=delete],.admin-poa-delete){background:#26a9c5!important;border:1px solid #26a9c5!important;color:#fff!important;box-shadow:none!important}
+.admin-app-shell .admin-dashboard-content button:focus-visible,.admin-app-shell .admin-dashboard-content a:focus-visible{outline:2px solid #008ca7;outline-offset:2px}
+.admin-dashboard-content .admin-poa-page{max-width:none;margin:0;padding:0;background:#fff}
+@media(max-width:767px){.admin-dashboard-content{padding:4px}.admin-app-shell .admin-dashboard-content :is(.clients-content,.countries-content,.services-content,.procedure-page,.fees-page,.overview-page,.customer-service-page){padding:10px 4px}.admin-app-shell .admin-dashboard-content :is(.clients-heading,.countries-heading,.services-heading,.fees-heading,.customer-heading,.overview-heading){flex-wrap:wrap;gap:10px}}
+.admin-app-shell .admin-dashboard-content :is(.clients-table-card,.country-table-card,.services-card,.fees-table-card)>header{background:#26a9c5!important;color:#fff!important;border-color:#a4edf7!important;flex-wrap:wrap}
+.admin-app-shell .admin-dashboard-content :is(.clients-table-card,.country-table-card,.services-card,.fees-table-card)>header :is(h2,p){color:#fff!important}
+.admin-app-shell .admin-dashboard-content :is(.clients-actions,.fees-heading-actions,.data-actions){flex-wrap:wrap;min-width:0}
+.admin-app-shell .admin-dashboard-content :is(.clients-table-card,.country-table-card,.services-card,.fees-table-card){min-width:0;max-width:100%;margin-left:0;margin-right:0}
+.admin-app-shell .admin-dashboard-content :is(.fees-heading,.clients-heading){flex-wrap:wrap}
+.admin-app-shell .admin-dashboard-content .admin-fees-page{padding:12px 10px!important}
+.admin-app-shell .admin-dashboard-content .admin-fees-page>div:last-child{background:#f0fcfe!important;min-width:0}
+.admin-app-shell .admin-dashboard-content .admin-fees-page>div:last-child>div:first-child{padding:12px;border-radius:6px;background:#26a9c5!important;margin-bottom:12px!important}
+.admin-app-shell .admin-dashboard-content .admin-fees-page>div:last-child>div:first-child :is(h1,p){color:#fff!important;font-family:Arial,Helvetica,sans-serif}
+.admin-app-shell .admin-dashboard-content .admin-fees-page h1{font-size:20px!important}
+@media(max-width:767px){.admin-app-shell .admin-dashboard-content :is(.clients-actions,.clients-pagination,.table-pagination){flex-wrap:wrap;gap:8px}.admin-app-shell .admin-dashboard-content .clients-actions{width:100%}.admin-app-shell .admin-dashboard-content .clients-actions button{padding:0 10px}.admin-app-shell .admin-dashboard-content .table-tools{max-width:100%}}
+
+.admin-app-shell .admin-dashboard-content :is(.overview-heading,.overview-panel-header,.clients-heading,.countries-heading,.services-heading,.fees-heading,.customer-heading) label{color:#fff!important}
+.admin-app-shell .admin-dashboard-content .overview-panel-header{padding:12px;margin:0;border-radius:5px 5px 0 0}
+.admin-app-shell .admin-dashboard-content .overview-panel th{background:#d8f8fc!important;color:#1888a1!important;text-transform:none!important;letter-spacing:normal!important;font-size:11px!important}
+.admin-app-shell .admin-dashboard-content :is(.table-tools,.country-search,.services-search){background:#f8feff;color:#1888a1;border-color:#9debf6}
+.admin-app-shell .admin-dashboard-content :is(.conversation-panel>header,.country-panel-heading){background:#26a9c5!important;color:#fff!important}
+.admin-app-shell .admin-dashboard-content :is(.conversation-panel>header,.country-panel-heading) :is(h2,h3,p){color:#fff!important}
+.admin-app-shell .admin-dashboard-content .fees-tabs{max-width:100%;min-width:0;flex-wrap:wrap;gap:6px}
+.admin-app-shell .admin-dashboard-content .fees-tab{border:1px solid #9debf6;border-radius:5px;color:#1888a1;font:11px Arial,Helvetica,sans-serif;box-shadow:none}
+.admin-app-shell .admin-dashboard-content .fees-tab.active{background:#00a8c1;color:#fff;border-color:#00a8c1}

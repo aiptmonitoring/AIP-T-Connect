@@ -250,7 +250,6 @@ export default function RequirementsPage() {
         <div className="countries-heading">
           <div>
             <h1>{poaOnly ? 'Power of Attorney (POA)' : 'Requirements'}</h1>
-            <p>View country, procedure, and filing requirement descriptions.</p>
           </div>
           {!readOnly && <button className="country-add" onClick={() => open('add')} data-action="add" title="Add Requirement"><ActionIcon name="add" /><span className="aipt-action-label">Add Requirement</span></button>}
         </div>

@@ -3,8 +3,8 @@
    Professional design with animations, responsive layout, and accessibility
    ============================================================================ */
 
-:root {
-  --primary-color: #3b82f6;
+.admin-fees-page {
+  --primary-color: #26a9c5;
   --success-color: #10b981;
   --warning-color: #f59e0b;
   --danger-color: #ef4444;

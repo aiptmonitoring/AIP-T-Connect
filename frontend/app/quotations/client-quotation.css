@@ -86,6 +86,28 @@
   opacity: 0.5;
   cursor: default;
 }
+.client-fee-edit-summary {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 6px 14px;
+  margin: 0 0 10px;
+  padding: 9px 11px;
+  border: 1px solid #a6eafa;
+  border-radius: 7px;
+  background: #e2f9fe;
+  color: #16839a;
+  font-size: 10px;
+}
+.client-fee-edit-summary strong {
+  color: #087b93;
+}
+.client-fee-edit-summary span:last-child {
+  flex-basis: 100%;
+}
+.client-fee-edit-summary span:last-child b {
+  color: #087b93;
+}
 .client-procedure-field small {
   font-size: 9px;
   font-weight: 400;

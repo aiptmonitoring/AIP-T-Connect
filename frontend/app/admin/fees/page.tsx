@@ -362,7 +362,7 @@ export default function AdminFeesPage() {
   const banner = statusBanners[systemStatus];
 
   return (
-    <main style={{ padding: '20px' }}>
+    <main className="admin-fees-page" style={{ padding: '20px' }}>
       {banner && (
         <div style={{
           padding: '12px 16px',

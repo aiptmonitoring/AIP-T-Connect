@@ -1,12 +1,11 @@
 .admin-app-shell { display: flex; min-height: 100dvh; }
-.admin-app-shell > main { min-width: 0; flex: 1 1 auto; }
-.admin-app-shell > .admin,
-.admin-app-shell > .clients-page,
-.admin-app-shell > .countries-page,
-.admin-app-shell > .procedure-page,
-.admin-app-shell > .services-page { grid-template-columns: minmax(0, 1fr) !important; }
+.admin-dashboard-content > .admin,
+.admin-dashboard-content > .clients-page,
+.admin-dashboard-content > .countries-page,
+.admin-dashboard-content > .procedure-page,
+.admin-dashboard-content > .services-page { grid-template-columns: minmax(0, 1fr) !important; }
 /* Countries is a legacy single-line page; its retired per-page sidebar stays hidden while its data UI is migrated separately. */
-.admin-app-shell > .countries-page > .countries-sidebar { display: none !important; }
+.admin-dashboard-content > .countries-page > .countries-sidebar { display: none !important; }
 
 .admin-sidebar {
   position: sticky;

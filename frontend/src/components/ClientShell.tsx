@@ -33,6 +33,7 @@ const links: Array<{ href: string; label: string; icon: IconName }> = [
   { href: '/client-dashboard/statements', label: 'Statements', icon: 'statements' },
   { href: '/client-dashboard/invoices', label: 'Invoices', icon: 'statements' },
   { href: '/client-dashboard/quotations', label: 'Quotations', icon: 'quotations' },
+  { href: '/client-dashboard/poa', label: 'POA', icon: 'requirements' },
   { href: '/client-dashboard/requirements', label: 'Requirements', icon: 'requirements' },
   { href: '/client-dashboard/customer-service', label: 'Customer Service', icon: 'support' },
 ];

@@ -739,9 +739,9 @@ export default function QuotationsPage() {
         {clientView && <section className="client-fee-selection" aria-labelledby="client-fee-title">
           <h2 id="client-fee-title"><svg viewBox="0 0 24 24" aria-hidden="true" fill="currentColor"><path d="M2 3h20l-8 9v8l-4 2V12z" /></svg>Fee Selection</h2>
           <form onSubmit={event => { event.preventDefault(); setSelected(null); setCart([]); setInvoiceDate(today()); setDiscount(0); setError(""); if (generateFees()) setModal("form"); }}>
-            <label>Services / Project *<select aria-label="Services / Project" value={category} disabled={lookupLoading} onChange={event => { setCategory(event.target.value as Category); setProcedureNames([]); }}><option value="" disabled>Select Services / Project</option>{serviceOptions.map(service => <option key={service.id} value={service.name}>{service.name}</option>)}</select></label>
+            <label>{category === "Trademark" ? "Trademark *" : "Services / Project *"}<select aria-label={category === "Trademark" ? "Trademark" : "Services / Project"} value={category} disabled={lookupLoading} onChange={event => { setCategory(event.target.value as Category); setProcedureNames([]); }}><option value="" disabled>Select {category === "Trademark" ? "Trademark" : "Services / Project"}</option>{serviceOptions.map(service => <option key={service.id} value={service.name}>{service.name}</option>)}</select></label>
             <label>Country *<select aria-label="Country" value={countryIds[0] ?? ""} disabled={lookupLoading} onChange={event => setCountryIds(event.target.value ? [event.target.value] : [])}><option value="">Select Country</option>{lookup.countries.map(country => <option key={country.id} value={country.id}>{country.name}</option>)}</select></label>
-            <div className="client-procedure-field"><span>Procedure * <small>(multiple allowed)</small></span><details ref={procedureDropdown}><summary>{procedureNames.length ? procedureNames.join(", ") : "Select Procedure"}</summary><div>{availableProcedures.map(procedure => <label key={procedure.id}><input type="checkbox" checked={procedureNames.includes(procedure.name)} onChange={event => { const checked = event.target.checked; setProcedureNames(current => checked ? [...current, procedure.name] : current.filter(name => name !== procedure.name)); event.currentTarget.closest("details")?.removeAttribute("open"); }} />{procedure.name}</label>)}</div></details></div>
+            <div className="client-procedure-field"><span>Procedure * <small>(multiple allowed)</small></span><details ref={procedureDropdown}><summary>{procedureNames.length ? procedureNames.join(", ") : "Select Procedure"}</summary><div>{availableProcedures.map(procedure => <label key={procedure.id}><input type="checkbox" checked={procedureNames.includes(procedure.name)} onChange={event => { const checked = event.target.checked; setProcedureNames(current => checked ? [...current, procedure.name] : current.filter(name => name !== procedure.name)); }} />{procedure.name}</label>)}</div></details></div>
             <label>Type of class *<select aria-label="Type of class" disabled={category !== "Trademark" || lookupLoading} value={classType} onChange={event => setClassType(event.target.value as ClassType)}><option value="">{category === "Trademark" ? "Select Type of class" : "Not applicable"}</option>{classTypeOptions.map(type => <option key={type}>{type}</option>)}</select></label>
             <label>Number of classes *<input aria-label="Number of classes" type="number" min="1" max="45" step="1" disabled={category !== "Trademark"} value={classCount} onChange={event => { setClassCount(Number(event.target.value)); setSelectedClassNumbers([]); }} /></label>
             <button type="submit" disabled={lookupLoading || saving || !lookup.current_client_id}><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" aria-hidden="true"><circle cx="10" cy="10" r="6" /><path d="m15 15 6 6" /></svg>Submit</button>
@@ -1354,10 +1354,16 @@ function InvoiceModal(props: any) {
               <span className="invoice-section-icon">⚖</span>
               <div id="quotation-fee-selection"><h3>Fee Selection{editingRow !== null ? " — Edit cart item" : ""}</h3><p>Choose service, country and method to view applicable fees. Requirements will be automatically filtered.</p></div>
             </div>
+            {isClientRole && editingRow !== null && <div className="client-fee-edit-summary" role="status">
+              <strong>Editing quotation item {editingRow + 1}</strong>
+              <span><b>{category}</b> · {lookup.countries.find((country: Country) => country.id === countryIds[0])?.name ?? "Select country"} · {procedureNames.join(", ") || "Select procedure"}</span>
+              {category === "Trademark" && <span>{classType || "Select type of class"} · {classCount} {classCount === 1 ? "class" : "classes"}</span>}
+              <span>Change the fields below, then choose <b>Update cart item</b> to apply the new configured fees.</span>
+            </div>}
             <div className="quotation-grid four">
               <div className="fee-field">
                 <SearchMulti
-                  label={`Services / Project${cart.length ? "" : " *"}`}
+                  label={editingRow !== null && category === "Trademark" ? "Trademark *" : `Services / Project *`}
                   options={serviceOptions}
                   selected={category ? [category] : []}
                   onChange={(values) => {
@@ -1378,7 +1384,7 @@ function InvoiceModal(props: any) {
 
               </div>
               <SearchMulti
-                label={`Country${cart.length ? "" : " *"}`}
+                label="Country *"
                 options={lookup.countries}
                 selected={countryIds}
                 onChange={(values) => { setCountryIds(values); setRequirementIds([]); setClassType(""); }}
@@ -1390,7 +1396,7 @@ function InvoiceModal(props: any) {
 
 
               <SearchMulti
-                label={`Procedure${cart.length ? "" : " *"} (multiple allowed)`}
+                label="Procedure * (multiple allowed)"
                 options={availableProcedures}
                 selected={procedureNames}
                 onChange={(values) => { setProcedureNames(values); setRequirementIds([]); }}

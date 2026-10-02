@@ -16,7 +16,8 @@ type IconName =
   | 'fees'
   | 'vat'
   | 'quotations'
-  | 'notifications';
+  | 'notifications'
+  | 'documents';
 
 type NavigationItem = {
   href: string;
@@ -50,6 +51,8 @@ const navigation: NavigationItem[] = [
     icon: 'notifications',
   },
   { href: '/statements', label: 'Statements', icon: 'notifications' },
+  { href: '/poa', label: 'POA', icon: 'documents' },
+  { href: '/schedule-of-fees', label: 'Schedule of Fees', icon: 'documents' },
   { href: '/users', label: 'Users', icon: 'clients' },
 ];
 
@@ -127,6 +130,13 @@ function Icon({ name }: { name: IconName }) {
       <svg {...common}>
         <path d="M5 5h14v14H5z" />
         <path d="M8 9h8M8 12h5M8 15h3" />
+      </svg>
+    );
+  if (name === 'documents')
+    return (
+      <svg {...common}>
+        <path d="M6 3h8l4 4v14H6z" />
+        <path d="M14 3v5h5M9 12h6M9 16h6" />
       </svg>
     );
   return (
