@@ -29,6 +29,9 @@ const adminRoutes = new Set([
 
 const clientRoutes = new Set([
   '/client-dashboard',
+  '/client-dashboard/overview',
+  '/client-dashboard/fees',
+  '/client-dashboard/poa',
   '/client-dashboard/quotations',
   '/client-dashboard/projects',
   '/client-dashboard/notifications',

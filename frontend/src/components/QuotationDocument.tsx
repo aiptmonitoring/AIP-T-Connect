@@ -47,7 +47,7 @@ export default function QuotationDocument({ invoice, requirements, qrDataUrl, ve
     <header className="quotation-heading" aria-label="Quotation">
       <img className="quotation-logo" src="/images/aipt-quotation-logo.svg" alt="AIP&T" />
       <div className="quotation-sender"><h2>AIPT for Trademark Registration Agents</h2><p>Building No.58<br />Salah Aldin Street, Office 3, Plot 6 - Jibla Kuwait<br />Email: Info@aiptlaw.com</p></div>
-      <a className="quotation-qr" href={verificationUrl} aria-label="Verify this quotation">{qrDataUrl ? <img src={qrDataUrl} alt="Quotation verification QR code" /> : <span>Preparing QR code...</span>}</a>
+      <a className="quotation-qr" href={verificationUrl} aria-label="Verify this quotation">{qrDataUrl ? <img src={qrDataUrl} alt="Quotation verification QR code" /> : <span>Preparing QR code...</span>}<small>Scan to verify</small></a>
     </header>
     <section className="quotation-parties">
       <div className="quotation-recipient" aria-label="Quotation recipient"><p>{toPlainText(invoice.client?.company_name) || '-'}</p><p>{toPlainText(invoice.client?.address) || '-'}</p></div>

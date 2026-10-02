@@ -5,9 +5,9 @@ import { useRouter } from "next/navigation";
 import { useEffect, useRef, useState } from "react";
 import { getSupabaseBrowserClient } from "../lib/supabase/browser";
 
-type AccountMenuProps = { name: string; email: string; initials: string; updateHref: string; className?: string; showChangePassword?: boolean };
+type AccountMenuProps = { name: string; email: string; initials: string; updateHref: string; className?: string; showChangePassword?: boolean; navigationLinks?: { href: string; label: string }[] };
 
-export default function AccountMenu({ name, email, initials, updateHref, className = "", showChangePassword = true }: AccountMenuProps) {
+export default function AccountMenu({ name, email, initials, updateHref, className = "", showChangePassword = true, navigationLinks = [] }: AccountMenuProps) {
   const router = useRouter();
   const [open, setOpen] = useState(false);
   const menu = useRef<HTMLDivElement>(null);
@@ -32,6 +32,7 @@ export default function AccountMenu({ name, email, initials, updateHref, classNa
     {open && <div className="account-menu-popover" role="menu">
       <div className="account-menu-heading"><b>{name}</b><small>{email || "Signed-in account"}</small></div>
       <Link href={updateHref} role="menuitem" onClick={() => setOpen(false)}>Update information</Link>
+      {navigationLinks.map(link => <Link key={link.href} href={link.href} role="menuitem" onClick={() => setOpen(false)}>{link.label}</Link>)}
       {showChangePassword && <Link href="/change-password" role="menuitem" onClick={() => setOpen(false)}>Change password</Link>}
       <button type="button" role="menuitem" className="account-menu-signout" onClick={() => void signOut()}>Sign out</button>
     </div>}

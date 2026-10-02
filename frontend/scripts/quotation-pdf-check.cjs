@@ -5,11 +5,12 @@ const assert = require('node:assert/strict');
 const ts = require('typescript');
 const React = require('react');
 const { renderToStaticMarkup } = require('react-dom/server');
-const QRCode = require('qrcode');
+
 const root = path.resolve(__dirname, '..');
 for (const extension of ['.tsx', '.ts']) require.extensions[extension] = (module, filename) => {
   module._compile(ts.transpileModule(fs.readFileSync(filename, 'utf8'), { compilerOptions: { jsx: ts.JsxEmit.React, esModuleInterop: true, module: ts.ModuleKind.CommonJS, target: ts.ScriptTarget.ES2020 } }).outputText.replace('"use strict";', extension === '.tsx' ? '"use strict"; const React = require("react");' : '"use strict";'), filename);
 };
+const { createQuotationQr, quotationVerificationUrl } = require('../src/lib/quotation-qr.ts');
 const { default: Document, quotationRow, quotationRequirementRows } = require('../src/components/QuotationDocument.tsx');
 const output = path.resolve(root, '../output/pdf');
 const tmp = path.resolve(root, '../tmp/pdfs');
@@ -43,7 +44,10 @@ async function main() {
   const browser = await chromium.launch({ executablePath: 'C:/Program Files/Google/Chrome/Application/chrome.exe', headless: true });
   try {
     const page = await browser.newPage({ viewport: { width: 1170, height: 1500 }, deviceScaleFactor: 1 });
-    const qrDataUrl = await QRCode.toDataURL('https://example.invalid/invoice/verify/0123456789abcdef0123456789abcdef0123456789abcdef', { width: 480, margin: 4, errorCorrectionLevel: 'H' });
+    const qrDataUrl = await createQuotationQr('https://aiptconnect.aiptlaw.com/invoice/verify/0123456789abcdef0123456789abcdef0123456789abcdef');
+    assert.match(qrDataUrl, /^data:image\/svg\+xml/);
+    assert.throws(() => quotationVerificationUrl(''));
+    assert.equal(quotationVerificationUrl('0'.repeat(48)), 'https://aiptconnect.aiptlaw.com/invoice/verify/' + '0'.repeat(48));
     for (const variant of ['reference', 'compact', 'long', 'design', 'discount-only', 'vat-only', 'neither']) {
       let data = variant === 'reference' ? invoice : variant === 'compact' ? { ...invoice, quotation_items: Array.from({ length: 4 }, () => ({ ...invoice.quotation_items[0] })), grand_total: 11518, total_vat: 288 } : { ...invoice, quotation_items: Array.from({ length: 12 }, (_, i) => ({ ...invoice.quotation_items[0], requirement_ids: ['r' + i], procedure_name: 'Renewal and registration of international trademarks' })), grand_total: 34654, total_vat: 864 };
       if (['discount-only', 'vat-only', 'neither'].includes(variant)) {
@@ -61,7 +65,7 @@ async function main() {
       };
       let requirements = variant !== 'long' ? [{ id: 'r1', country_id: 'af', procedure: 'Renewal', description: 'Signed power of attorney.\nCopy of the trademark registration certificate.' }] : data.quotation_items.map((item, i) => ({ id: 'r' + i, country_id: 'af', procedure: item.procedure_name, description: 'Provide a signed power of attorney and the registration certificate.\n' + 'Long requirement text to verify wrapping and printed pagination. '.repeat(5) }));
       if (variant === 'design') requirements = [{ id: 'cy-requirement', country_id: 'cy', category: 'Trademark', procedure: 'Registration', description: 'Trademark Application Requirements in Cyprus:\n* Information of the applicant: name, address, and nationality.\n* A signed POA.\n* Classes and specifications of Goods/Services.\n* Priority document (if claiming priority).\n* Mark representation (Logo).\n* Passport copy (if applicant is an individual).' }];
-      let markup = renderToStaticMarkup(React.createElement(Document, { invoice: data, requirements, qrDataUrl, verificationUrl: 'https://example.invalid/invoice/verify/0123456789abcdef0123456789abcdef0123456789abcdef' }));
+      let markup = renderToStaticMarkup(React.createElement(Document, { invoice: data, requirements, qrDataUrl, verificationUrl: 'https://aiptconnect.aiptlaw.com/invoice/verify/0123456789abcdef0123456789abcdef0123456789abcdef' }));
       markup = markup.replace(/src="(\/images\/[^"]+)"/g, (_, src) => 'src="data:image/' + (src.endsWith('.svg') ? 'svg+xml' : 'png') + ';base64,' + fs.readFileSync(path.join(root, 'public', src)).toString('base64') + '"');
       const html = `<!doctype html><html><head><meta charset="utf-8"><style>${styles}</style></head><body><main class="quotation-document">${markup}</main></body></html>`;
       fs.writeFileSync(path.join(tmp, variant + '.html'), html);
@@ -74,7 +78,7 @@ async function main() {
       assert.equal(await page.locator('.quotation-totals > div').filter({hasText: 'Total VAT'}).count(), Number(showVat));
       assert.equal(await page.locator('.quotation-fees th').count(), 6 + Number(showDiscount) + Number(showVat));
       assert.equal(await page.locator('.quotation-fees tbody tr:first-child td').count(), 6 + Number(showDiscount) + Number(showVat));
-      assert.equal(await page.locator('.quotation-qr').getAttribute('href'), 'https://example.invalid/invoice/verify/0123456789abcdef0123456789abcdef0123456789abcdef');
+      assert.equal(await page.locator('.quotation-qr').getAttribute('href'), 'https://aiptconnect.aiptlaw.com/invoice/verify/0123456789abcdef0123456789abcdef0123456789abcdef');
       assert.equal(await page.locator('.quotation-logo').count(), 1);
       for (const section of ['.quotation-requirements', '.quotation-fees']) {
         const colors = await page.locator(section).evaluate(el => [getComputedStyle(el.querySelector('th')).backgroundColor, getComputedStyle(el.querySelector('td')).backgroundColor]);

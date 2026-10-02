@@ -47,6 +47,7 @@ function enrichRequirement(item: Requirement, serviceRows: Service[], procedureR
 export default function RequirementsPage() {
   const pathname = usePathname();
   const readOnly = pathname.startsWith('/client-dashboard/');
+  const poaOnly = pathname === '/client-dashboard/poa';
   const [PAGE_SIZE, setPageSize] = useState(10);
   const [allRows, setAllRows] = useState<Requirement[]>([]),
     [countries, setCountries] = useState<Country[]>([]),
@@ -122,8 +123,8 @@ export default function RequirementsPage() {
   const filteredRows = useMemo(() => {
     const term = search.trim().toLowerCase();
     const field = (row: Requirement) => sort === 'country' ? row.country?.name ?? '' : sort === 'service' ? row.service?.service ?? '' : sort === 'procedure' ? row.procedure?.description ?? '' : sort === 'description' ? toPlainText(row.description) : row.created_at;
-    return allRows.filter((item) => (!countryFilter || item.country_id === countryFilter) && (!serviceFilter || item.service_id === serviceFilter) && (!procedureFilter || item.procedure_id === procedureFilter) && (!term || [item.country?.name, item.service?.service, item.procedure?.description, toPlainText(item.description)].join(' ').toLowerCase().includes(term))).sort((a, b) => field(a).localeCompare(field(b)) * (direction === 'asc' ? 1 : -1));
-  }, [allRows, countryFilter, serviceFilter, procedureFilter, search, sort, direction]);
+    return allRows.filter((item) => (!poaOnly || /\bpoa\b|power\s+of\s+attorney/i.test(toPlainText(item.description))) && (!countryFilter || item.country_id === countryFilter) && (!serviceFilter || item.service_id === serviceFilter) && (!procedureFilter || item.procedure_id === procedureFilter) && (!term || [item.country?.name, item.service?.service, item.procedure?.description, toPlainText(item.description)].join(' ').toLowerCase().includes(term))).sort((a, b) => field(a).localeCompare(field(b)) * (direction === 'asc' ? 1 : -1));
+  }, [allRows, countryFilter, serviceFilter, procedureFilter, search, sort, direction, poaOnly]);
   const total = filteredRows.length;
   const rows = filteredRows.slice((page - 1) * PAGE_SIZE, page * PAGE_SIZE);
   useEffect(() => { setPage((current) => Math.min(current, Math.max(1, Math.ceil(total / PAGE_SIZE)))); }, [total, PAGE_SIZE]);
@@ -248,7 +249,7 @@ export default function RequirementsPage() {
         </header>
         <div className="countries-heading">
           <div>
-            <h1>Requirements</h1>
+            <h1>{poaOnly ? 'Power of Attorney (POA)' : 'Requirements'}</h1>
             <p>View country, procedure, and filing requirement descriptions.</p>
           </div>
           {!readOnly && <button className="country-add" onClick={() => open('add')} data-action="add" title="Add Requirement"><ActionIcon name="add" /><span className="aipt-action-label">Add Requirement</span></button>}

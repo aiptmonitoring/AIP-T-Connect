@@ -2,9 +2,12 @@
 
 import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
-import { useEffect, useState } from 'react';
+import { createContext, useContext, useEffect, useState } from 'react';
 import { fetchSupabaseFunction, getSupabaseBrowserClient } from '../lib/supabase/browser';
 import AccountMenu from './AccountMenu';
+import ClientDashboardIcon from './ClientDashboardIcon';
+const ClientIdentity = createContext({ name: 'Client', email: '' });
+export const useClientIdentity = () => useContext(ClientIdentity);
 
 type IconName = 'dashboard' | 'projects' | 'notifications' | 'statements' | 'quotations' | 'requirements' | 'support' | 'menu' | 'search';
 
@@ -36,6 +39,7 @@ const links: Array<{ href: string; label: string; icon: IconName }> = [
 
 export default function ClientShell({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
+  const isHome = pathname === '/client-dashboard';
   const router = useRouter();
   const [name, setName] = useState('Client');
   const [email, setEmail] = useState('');
@@ -109,7 +113,20 @@ export default function ClientShell({ children }: { children: React.ReactNode })
   };
   const closeDrawer = () => setDrawerOpen(false);
   const sidebarClass = `client-sidebar${isDesktop && collapsed ? ' is-collapsed' : ''}${!isDesktop && drawerOpen ? ' is-drawer-open' : ''}`;
-  const breadcrumb = pathname === '/client-dashboard' ? 'Dashboard' : pathname.includes('quotations') ? 'Quotations' : pathname.includes('notifications') ? 'Notifications' : pathname.includes('requirements') ? 'Requirements' : pathname.includes('customer-service') ? 'Customer Service' : pathname.includes('settings') ? 'Settings' : pathname.includes('statements') ? 'Statements' : pathname.includes('invoices') ? 'Invoices' : 'Projects';
+  const breadcrumb = pathname === '/client-dashboard' ? 'Dashboard' : pathname.includes('overview') ? 'Overview' : pathname.includes('fees') ? 'Fees' : pathname.includes('poa') ? 'POA' : pathname.includes('quotations') ? 'Quotations' : pathname.includes('notifications') ? 'Notifications' : pathname.includes('requirements') ? 'Requirements' : pathname.includes('customer-service') ? 'Customer Service' : pathname.includes('settings') ? 'Settings' : pathname.includes('statements') ? 'Statements' : pathname.includes('invoices') ? 'Invoices' : 'Projects';
+
+  if (isHome) return <ClientIdentity.Provider value={{ name, email }}><div className="client-app-shell client-home-shell">
+    <main className="client-main">
+      <header className="client-home-header">
+        <Link className="client-home-brand" href="/client-dashboard" aria-label="AIP&T home"><strong>AIP&amp;T</strong><small>INTELLECTUAL PROPERTY</small></Link>
+        <nav className="client-home-breadcrumb" aria-label="Breadcrumb"><Link href="/client-dashboard"><ClientDashboardIcon name="home" /><span>Home</span></Link><span aria-hidden="true">/</span><b aria-current="page">Dashboard</b></nav>
+        <div className="client-home-account"><Link href="/client-dashboard/settings" className="client-home-profile" aria-label="Account settings"><ClientDashboardIcon name="user" /></Link><AccountMenu name={name} email={email} initials={initials} updateHref="/client-dashboard/settings" className="client-home-account-menu" navigationLinks={[{ href: '/client-dashboard/overview', label: 'Portfolio overview' }, { href: '/client-dashboard/invoices', label: 'Invoices' }, { href: '/client-dashboard/customer-service', label: unreadMessages ? `Help & Support (${unreadMessages} unread)` : 'Help & Support' }]} /></div>
+      </header>
+      {accessState === 'checking' && <section className="client-access-state">Checking client access...</section>}
+      {accessState === 'denied' && <section className="client-access-state client-error">Client access is required.</section>}
+      {accessState === 'allowed' && children}
+    </main>
+  </div></ClientIdentity.Provider>;
 
   return <div className='client-app-shell'>
     {!isDesktop && <button className='client-mobile-toggle' type='button' aria-label={drawerOpen ? 'Close navigation' : 'Open navigation'} aria-expanded={drawerOpen} onClick={toggleSidebar}><ClientIcon name='menu'/></button>}

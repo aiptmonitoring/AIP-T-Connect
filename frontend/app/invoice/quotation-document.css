@@ -71,3 +71,9 @@
 .quotation-ending{break-inside:avoid}
 
 @media screen{.quotation-document{display:flex;flex-direction:column}.quotation-footer-frame{order:1}}
+
+/* Vector QR with a scanner-safe white border, over 31 mm wide on A4. */
+.quotation-heading{grid-template-columns:246px minmax(0,1fr) 184px}
+.quotation-qr{width:176px;height:auto;text-decoration:none;break-inside:avoid}
+.quotation-qr img{width:176px;height:176px;image-rendering:auto}
+.quotation-qr small{display:block;text-align:center;font-size:12px;line-height:16px;color:#00517f}

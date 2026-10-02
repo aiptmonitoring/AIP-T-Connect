@@ -1,7 +1,7 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-import QRCode from 'qrcode';
+import { createQuotationQr, quotationVerificationUrl } from '../lib/quotation-qr';
 import QuotationDocument, { type PrintableQuotation, type QuotationRequirement } from './QuotationDocument';
 
 type Props = { invoice: PrintableQuotation; requirements: QuotationRequirement[]; verificationToken: string; verified?: boolean };
@@ -14,16 +14,19 @@ export default function QuotationPrintView({ invoice, requirements, verification
   const [printing, setPrinting] = useState(false);
   useEffect(() => {
     let active = true;
-    const url = window.location.origin + '/invoice/verify/' + encodeURIComponent(verificationToken);
+    let url: string;
+    try { url = quotationVerificationUrl(verificationToken); }
+    catch (cause) { setQrDataUrl(''); setVerificationUrl(''); setError(cause instanceof Error ? cause.message : 'Unable to prepare verification.'); return; }
     setVerificationUrl(url);
     setQrDataUrl('');
     setError('');
-    void QRCode.toDataURL(url, { width: 480, margin: 4, errorCorrectionLevel: 'H' })
+    void createQuotationQr(url)
       .then(value => { if (active) setQrDataUrl(value); })
       .catch(() => { if (active) setError('Unable to prepare the QR code. Reload this page to try again.'); });
     return () => { active = false; };
   }, [verificationToken]);
   const print = async () => {
+    if (!qrDataUrl || !verificationUrl) return;
     setPrinting(true);
     setError('');
     try {

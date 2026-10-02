@@ -12,7 +12,7 @@ import {
   fetchSupabaseFunction,
   getSupabaseBrowserClient,
 } from "../../src/lib/supabase/browser";
-import QRCode from "qrcode";
+import { createQuotationQr, quotationVerificationUrl } from "../../src/lib/quotation-qr";
 import "./quotation.css";
 
 type Category = "Trademark" | "Patent" | "Design" | "Copyright" | "Others";
@@ -297,9 +297,12 @@ export default function QuotationsPage() {
       setVerificationQr("");
       return;
     }
-    void QRCode.toDataURL(`${window.location.origin}/invoice/verify/${selected.invoice_verification_token}`, { width: 180, margin: 2, errorCorrectionLevel: "H" })
-      .then(setVerificationQr)
-      .catch(() => setVerificationQr(""));
+    let active = true;
+    setVerificationQr("");
+    void Promise.resolve().then(() => createQuotationQr(quotationVerificationUrl(selected.invoice_verification_token!)))
+      .then(value => { if (active) setVerificationQr(value); })
+      .catch(() => { if (active) setVerificationQr(""); });
+    return () => { active = false; };
   }, [modal, selected]);
 
   const exportQuotes = async () => {
