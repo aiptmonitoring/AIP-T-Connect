@@ -1,0 +1,11 @@
+/* Shared reference color for client card and table headers. */
+.client-app-shell { --client-card-header: #25a9c2; }
+.client-app-shell .client-main :is(.client-panel > .panel-title, .client-project-card > header, .professional-timeline > header, .client-conversation-list > header, .client-chat-card > header, .account-modal > header, .support-request-modal > header, .client-fee-selection > h2, .invoice-titlebar) {
+ background: var(--client-card-header) !important; color: #fff !important;
+}
+.client-app-shell .client-main :is(.panel-title, .client-project-card > header, .client-conversation-list > header, .client-chat-card > header, .account-modal > header, .invoice-titlebar) :is(h1,h2,h3,p,span) { color: #fff; }
+.client-app-shell .client-main :is(.client-table, .client-project-table, .country-table-wrap table) > thead > tr > th {
+ background: var(--client-card-header) !important; color: #fff !important; border-color: #70cedd;
+}
+
+.client-app-shell .client-main thead th .aipt-sort { color: inherit; }

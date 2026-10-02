@@ -309,7 +309,7 @@ Deno.serve(async (request) => {
       const filtered = (data ?? []).filter((item: any) => (!country || item.quotation_items?.some((row: any) => row.country_id === country)) && (!search || JSON.stringify(item).toLowerCase().includes(search)));
       return json({ data: filtered.slice((page - 1) * pageSize, page * pageSize).map(withQuotationValidity), total: filtered.length, page, page_size: pageSize });
     }
-    if (profile.role !== 'administrator' && !(profile.role === 'client' && request.method === 'POST')) return json({ error: 'Only administrators can manage quotations.' }, 403);
+    if (profile.role !== 'administrator' && !(profile.role === 'client' && ['POST', 'PUT'].includes(request.method))) return json({ error: 'Only administrators can manage quotations.' }, 403);
     if (request.method === 'POST' && isApproval) {
       if (profile.role !== 'administrator') return json({ error: 'Only administrators can approve quotations.' }, 403);
       if (!id) throw Error('Quotation id is required.');
@@ -354,6 +354,19 @@ Deno.serve(async (request) => {
         if (!project) throw Error('The inquiry project does not belong to the selected client.');
       }
       const payload = { client_id: clientId, project_id: body.project_id || null, primary_category: first.category, primary_country_id: first.country_id, client_matter_ref: typeof body.client_matter_ref === 'string' ? body.client_matter_ref.trim() : null, invoice_date: typeof body.invoice_date === 'string' && body.invoice_date ? body.invoice_date : new Date().toISOString().slice(0, 10), subject: typeof body.subject === 'string' ? body.subject.trim() : '', currency: 'USD', vatable, vat_rate: vatRate, discount, total_official_fee: summary.official, total_attorney_fee: summary.attorney, total_other_fee: summary.other, total_vat: summary.vat, grand_total: summary.grand };
+      if (request.method === 'PUT' && profile.role === 'client') {
+        if (!id) throw Error('Quotation id is required.');
+        const itemRows = items.map(({ vat, ...item }) => item);
+        const result = await db.rpc('edit_pending_client_quotation', {
+          p_quotation_id: id, p_client_id: clientId, p_payload: payload, p_items: itemRows,
+        });
+        if (result.error) {
+          if (result.error.code === '42501') return json({ error: 'Quotation not found for this client.' }, 403);
+          if (result.error.code === '23514') return json({ error: result.error.message }, 409);
+          throw result.error;
+        }
+        return json({ ...result.data, ...payload, items: itemRows }, 200);
+      }
       let quotation: any;
       if (request.method === 'POST') {
         const result = await db.from('quotations').insert({ ...payload, created_by: user.id, status: 'Pending Approval' }).select('id,reference_no,invoice_verification_token').single();

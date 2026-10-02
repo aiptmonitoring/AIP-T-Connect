@@ -237,6 +237,18 @@ export default function QuotationsPage() {
   const [debouncedSearch, setDebouncedSearch] = useState("");
   const lookupRequest = useRef<Promise<Lookup> | null>(null);
   const listRequest = useRef(0);
+  const procedureDropdown = useRef<HTMLDetailsElement>(null);
+  useEffect(() => {
+    const closeOutside = (event: PointerEvent) => {
+      if (event.target instanceof Node && !procedureDropdown.current?.contains(event.target)) procedureDropdown.current?.removeAttribute("open");
+    };
+    const closeOnEscape = (event: KeyboardEvent) => {
+      if (event.key === "Escape") procedureDropdown.current?.removeAttribute("open");
+    };
+    document.addEventListener("pointerdown", closeOutside);
+    document.addEventListener("keydown", closeOnEscape);
+    return () => { document.removeEventListener("pointerdown", closeOutside); document.removeEventListener("keydown", closeOnEscape); };
+  }, []);
   const [saving, setSaving] = useState(false);
   const [verificationQr, setVerificationQr] = useState("");
 
@@ -499,6 +511,7 @@ export default function QuotationsPage() {
     setModal("form");
   };
   const openEdit = (quote: Quotation) => {
+    if (isClientRole && quote.status !== "Pending Approval") return;
     setSelected(quote);
     setClientId(quote.client?.id ?? "");
       setProjectId(quote.project?.id ?? "");
@@ -728,7 +741,7 @@ export default function QuotationsPage() {
           <form onSubmit={event => { event.preventDefault(); setSelected(null); setCart([]); setInvoiceDate(today()); setDiscount(0); setError(""); if (generateFees()) setModal("form"); }}>
             <label>Services / Project *<select aria-label="Services / Project" value={category} disabled={lookupLoading} onChange={event => { setCategory(event.target.value as Category); setProcedureNames([]); }}><option value="" disabled>Select Services / Project</option>{serviceOptions.map(service => <option key={service.id} value={service.name}>{service.name}</option>)}</select></label>
             <label>Country *<select aria-label="Country" value={countryIds[0] ?? ""} disabled={lookupLoading} onChange={event => setCountryIds(event.target.value ? [event.target.value] : [])}><option value="">Select Country</option>{lookup.countries.map(country => <option key={country.id} value={country.id}>{country.name}</option>)}</select></label>
-            <div className="client-procedure-field"><span>Procedure * <small>(multiple allowed)</small></span><details><summary>{procedureNames.length ? procedureNames.join(", ") : "Select Procedure"}</summary><div>{availableProcedures.map(procedure => <label key={procedure.id}><input type="checkbox" checked={procedureNames.includes(procedure.name)} onChange={event => setProcedureNames(current => event.target.checked ? [...current, procedure.name] : current.filter(name => name !== procedure.name))} />{procedure.name}</label>)}</div></details></div>
+            <div className="client-procedure-field"><span>Procedure * <small>(multiple allowed)</small></span><details ref={procedureDropdown}><summary>{procedureNames.length ? procedureNames.join(", ") : "Select Procedure"}</summary><div>{availableProcedures.map(procedure => <label key={procedure.id}><input type="checkbox" checked={procedureNames.includes(procedure.name)} onChange={event => { const checked = event.target.checked; setProcedureNames(current => checked ? [...current, procedure.name] : current.filter(name => name !== procedure.name)); event.currentTarget.closest("details")?.removeAttribute("open"); }} />{procedure.name}</label>)}</div></details></div>
             <label>Type of class *<select aria-label="Type of class" disabled={category !== "Trademark" || lookupLoading} value={classType} onChange={event => setClassType(event.target.value as ClassType)}><option value="">{category === "Trademark" ? "Select Type of class" : "Not applicable"}</option>{classTypeOptions.map(type => <option key={type}>{type}</option>)}</select></label>
             <label>Number of classes *<input aria-label="Number of classes" type="number" min="1" max="45" step="1" disabled={category !== "Trademark"} value={classCount} onChange={event => { setClassCount(Number(event.target.value)); setSelectedClassNumbers([]); }} /></label>
             <button type="submit" disabled={lookupLoading || saving || !lookup.current_client_id}><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" aria-hidden="true"><circle cx="10" cy="10" r="6" /><path d="m15 15 6 6" /></svg>Submit</button>
@@ -842,7 +855,7 @@ export default function QuotationsPage() {
                             setModal("view");
                           }}
                          data-action="view" data-icon-only="true" title="View"><ActionIcon name="view" /><span className="aipt-action-label">View</span></button>
-                        {!isClientRole && <button
+                        {(!isClientRole || quote.status === "Pending Approval") && <button
                           type="button"
                           onClick={() => openEdit(quote)}
                           disabled={["Approved", "Posted", "Cancelled"].includes(quote.status)}
@@ -886,8 +899,8 @@ export default function QuotationsPage() {
           <TablePagination page={page} pageSize={pageSize} total={total} onPageChange={setPage} onPageSizeChange={setPageSize} loading={loading} />
           {clientView && <div className="client-status-legend"><b>Status Colors:</b>{["Pending", "Approved", "Rejected", "Cancelled"].map(label => <span key={label} className={label.toLowerCase()}><i aria-hidden="true" />{label}<small>(View / PDF)</small></span>)}</div>}
         </section>
-        {modal === "form" && clientView && <ClientQuotationPreview invoice={{ reference_no: "Assigned on submission", invoice_date: invoiceDate, client_matter_ref: clientMatterRef, client, currency: "USD", vatable, vat_rate: 0, total_vat: vatTotal, discount, grand_total: grandTotal, quotation_items: cart.map(item => ({ ...item, country: lookup.countries.find(country => country.id === item.country_id) })) }} requirements={lookup.requirements.map(requirement => ({ ...requirement, category: lookup.services.find(service => service.id === requirement.service_id)?.name }))} saving={saving} error={error} onClose={() => setModal(null)} onSubmit={save} />}
-        {modal === "form" && !clientView && (
+        {modal === "form" && clientView && !selected && <ClientQuotationPreview invoice={{ reference_no: "Assigned on submission", invoice_date: invoiceDate, client_matter_ref: clientMatterRef, client, currency: "USD", vatable, vat_rate: 0, total_vat: vatTotal, discount, grand_total: grandTotal, quotation_items: cart.map(item => ({ ...item, country: lookup.countries.find(country => country.id === item.country_id) })) }} requirements={lookup.requirements.map(requirement => ({ ...requirement, category: lookup.services.find(service => service.id === requirement.service_id)?.name }))} saving={saving} error={error} onClose={() => setModal(null)} onSubmit={save} />}
+        {modal === "form" && (!clientView || selected) && (
           <InvoiceModal
             client={client}
             clientId={clientId}
@@ -1037,14 +1050,15 @@ function SearchMulti({
   const selectedItems = options.filter((item) => selected.includes(getId(item)));
   return (
     <div
-      className={`search-multi${compact ? " search-multi-compact" : ""}${compact && (query || focused) ? " has-query" : ""}`}
-      onFocus={() => setFocused(true)}
-      onBlur={() => window.setTimeout(() => setFocused(false), 150)}
+      className={`search-multi${compact ? " search-multi-compact" : ""}${compact && focused ? " has-query" : ""}`}
+      onBlur={event => { if (!event.currentTarget.contains(event.relatedTarget)) setFocused(false); }}
+      onKeyDown={event => { if (event.key === "Escape") setFocused(false); }}
     >
       {label}
       <input
         value={query}
-        onChange={(event) => setQuery(event.target.value)}
+        onFocus={() => setFocused(true)}
+        onChange={(event) => { setQuery(event.target.value); setFocused(true); }}
         placeholder={`Search ${label.toLowerCase()}`}
       />
       {selectedItems.length > 0 && (
@@ -1062,13 +1076,14 @@ function SearchMulti({
               <input
                 type="checkbox"
                 checked={selected.includes(id)}
-                onChange={() =>
+                onChange={() => {
                   onChange(
                     selected.includes(id)
                       ? selected.filter((value: string) => value !== id)
                       : [...selected, id],
-                  )
-                }
+                  );
+                  if (compact) { setQuery(""); setFocused(false); }
+                }}
               />
               {validFlagUrl(item.flag_url) ? <img className="search-multi-flag" src={validFlagUrl(item.flag_url)} alt="" /> : null}
               {getLabel(item)}
@@ -1260,8 +1275,8 @@ function InvoiceModal(props: any) {
         <header className="invoice-titlebar">
           <div className="invoice-title-icon">▤</div>
           <div>
-            <h2>{selected ? "Edit Client Invoice" : "Create Client Invoice"}</h2>
-            <p>Generate a professional invoice for your client</p>
+            <h2>{selected ? (isClientRole ? "Edit Quotation" : "Edit Client Invoice") : "Create Client Invoice"}</h2>
+            <p>{isClientRole ? "Update your quotation before administrator approval." : "Generate a professional invoice for your client"}</p>
           </div>
           <button type="button" onClick={onClose}>
             ×

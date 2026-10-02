@@ -116,6 +116,7 @@ const quotes = ["Pending Approval", "Approved", "Rejected", "Cancelled"].map(
   page.on("pageerror", (e) => errors.push(e.message));
   const requests = [];
   let saved;
+  let edited;
   const expires = Math.floor(Date.now() / 1000) + 3600;
   const token =
     Buffer.from(JSON.stringify({ alg: "HS256", typ: "JWT" })).toString(
@@ -160,6 +161,9 @@ const quotes = ["Pending Approval", "Approved", "Rejected", "Cancelled"].map(
           await new Promise((r) => setTimeout(r, 650));
         body = { data: rows, total: rows.length };
       }
+    } else if (url.pathname.endsWith("/quotations/quote0") && route.request().method() === "PUT") {
+      edited = route.request().postDataJSON();
+      body = { id: "quote0", reference_no: quotes[0].reference_no };
     } else if (url.pathname.includes("/auth/v1/user"))
       body = {
         id: "fixture-user",
@@ -175,7 +179,8 @@ const quotes = ["Pending Approval", "Approved", "Rejected", "Cancelled"].map(
       };
     else if (url.pathname.endsWith("/clients"))
       body = { email: "fixture@example.invalid" };
-    else body = { tickets: [], data: [] };
+    else if (url.pathname.endsWith("/notifications")) body = [];
+    else body = { tickets: [], data: [], total: 0 };
     await route
       .fulfill({
         status: 200,
@@ -215,6 +220,23 @@ const quotes = ["Pending Approval", "Approved", "Rejected", "Cancelled"].map(
       path: path.join(out, "desktop.png"),
       fullPage: true,
     });
+    const pending = page.locator(".client-quotation-page tbody tr").filter({ hasText: quotes[0].reference_no });
+    assert.equal(await page.locator('.client-quotation-page button[title="Edit"]').count(), 1, "Only pending client quotations have Edit");
+    await pending.getByTitle("Edit", { exact: true }).click();
+    await page.locator(".invoice-dialog").waitFor();
+    await page.getByPlaceholder("Search country").fill("Cyprus");
+    await page.locator(".invoice-dialog .search-multi").filter({ hasText: "Country" }).getByRole("checkbox", { name: "Cyprus", exact: true }).check();
+    assert.equal(await page.getByRole("checkbox", { name: "Cyprus", exact: true }).isVisible(), false, "Selection closes searchable fee dropdown");
+    await page.getByPlaceholder("Enter reference and attention details...").fill("Updated client matter");
+    await page.screenshot({ path: path.join(out, "edit-pending.png"), fullPage: true });
+    await page.getByTitle("Update Quotation", { exact: true }).click();
+    await page.locator(".invoice-dialog").waitFor({ state: "hidden" });
+    assert.equal(edited.items.length, 1, "Editing preserves the existing cart without duplication");
+    assert.equal(edited.client_id, client.id);
+    assert.equal(edited.client_matter_ref, "Updated client matter");
+    assert.equal(saved, undefined, "Editing uses PUT rather than creating another invoice");
+    const header = await page.locator(".client-fee-selection h2").evaluate(e => ({ background: getComputedStyle(e).backgroundColor, color: getComputedStyle(e).color }));
+    assert.deepEqual(header, { background: "rgb(37, 169, 194)", color: "rgb(255, 255, 255)" });
     const before = requests.filter((q) =>
       new URLSearchParams(q).get("lookup"),
     ).length;
@@ -257,7 +279,10 @@ const quotes = ["Pending Approval", "Approved", "Rejected", "Cancelled"].map(
     await page
       .getByRole("checkbox", { name: "Registration", exact: true })
       .check();
+    assert.equal(await page.locator(".client-procedure-field details").getAttribute("open"), null, "Selecting a procedure closes its menu");
     await page.locator(".client-procedure-field summary").click();
+    await page.keyboard.press("Escape");
+    assert.equal(await page.locator(".client-procedure-field details").getAttribute("open"), null);
     await page
       .getByRole("combobox", { name: "Type of class", exact: true })
       .selectOption("Per mark per class");
@@ -332,9 +357,21 @@ const quotes = ["Pending Approval", "Approved", "Rejected", "Cancelled"].map(
       false,
       "Page must fit mobile width",
     );
+    await page.setViewportSize({ width: 1440, height: 1050 });
+    for (const [route, selector] of [
+      ["overview", ".panel-title"], ["notifications", ".panel-title"],
+      ["fees", ".client-table th"], ["invoices", ".panel-title"],
+      ["projects", ".client-project-card > header"],
+      ["requirements", ".country-table-wrap th"], ["settings", ".account-modal > header"],
+      ["customer-service", ".client-conversation-list > header"],
+    ]) {
+      await page.goto((process.env.TEST_BASE_URL || "http://localhost:3000") + "/client-dashboard/" + route);
+      await page.locator(selector).first().waitFor();
+      assert.equal(await page.locator(selector).first().evaluate(e => getComputedStyle(e).backgroundColor), "rgb(37, 169, 194)", route + " shares the reference card header");
+    }
     assert.deepEqual(errors, []);
     console.log(
-      "Client quotation browser checks passed: catalog reuse, debounce, preview fees, requirements, mock submission, mobile width.",
+      "Client browser checks passed: pending-only editing, PUT save, dropdown dismissal, eight page headers, catalog reuse, preview, mock submission, mobile width.",
     );
   } finally {
     await browser.close();
