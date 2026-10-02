@@ -14,7 +14,7 @@ export default function TablePagination({ page, pageSize, total, onPageChange, o
   const current = Math.min(Math.max(1, page), pages);
   return (
     <footer className="aipt-pagination">
-      <span>Showing {total ? (current - 1) * pageSize + 1 : 0}?{Math.min(current * pageSize, total)} of {total}</span>
+      <span>Showing {total ? (current - 1) * pageSize + 1 : 0}–{Math.min(current * pageSize, total)} of {total}</span>
       <label>Rows per page <select aria-label="Rows per page" value={pageSize} disabled={loading} onChange={event => { onPageSizeChange(Number(event.target.value)); onPageChange(1); }}>
         {[10, 20, 50, 100].map(size => <option key={size} value={size}>{size}</option>)}
       </select></label>

@@ -1,19 +1,24 @@
 'use client';
 import { availableClassTypes, calculateClassPricing, quotationDisplayRows, classTypes, type ClassType, type ClassRate, type PricingRow } from '../../../backend/supabase/functions/_shared/quotation-class-pricing';
 import { toPlainText } from '../../src/lib/plain-text';
-import DataTransfer from '../../src/components/DataTransfer';
+import dynamic from 'next/dynamic';
+import { usePathname } from 'next/navigation';
+import QuotationDocument from '../../src/components/QuotationDocument';
+import '../invoice/quotation-document.css';
+const DataTransfer = dynamic(() => import('../../src/components/DataTransfer'));
 import TablePagination from '../../src/components/TablePagination';
 import ActionIcon from '../../src/components/ActionIcon';
 import TrademarkClassSelector from '../../src/components/TrademarkClassSelector';
 
 
-import { FormEvent, useCallback, useEffect, useMemo, useState } from "react";
+import { FormEvent, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
   fetchSupabaseFunction,
   getSupabaseBrowserClient,
 } from "../../src/lib/supabase/browser";
 import { createQuotationQr, quotationVerificationUrl } from "../../src/lib/quotation-qr";
 import "./quotation.css";
+import "./client-quotation.css";
 
 type Category = "Trademark" | "Patent" | "Design" | "Copyright" | "Others";
 type Country = {
@@ -183,20 +188,18 @@ const blankItem = (category: Category = "Trademark"): QuoteItem => ({
 
 function generateInvoiceSubject({
   item,
-  clientName,
   countryName,
 }: {
   item: QuoteItem;
-  clientName: string;
   countryName: string;
 }) {
-  const applicant = clientName || "[applicant]";
   const country = countryName || "[country]";
   const procedure = item.procedure_name || "[procedure]";
   return `${procedure} in ${country}.`;
 }
 
 export default function QuotationsPage() {
+  const clientView = usePathname() === "/client-dashboard/quotations";
   const [lookup, setLookup] = useState<Lookup>(emptyLookup);
   const [rows, setRows] = useState<Quotation[]>([]);
   const [page, setPage] = useState(1);
@@ -229,6 +232,11 @@ export default function QuotationsPage() {
   const [notice, setNotice] = useState("");
   const [createdReference, setCreatedReference] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
+  const [lookupLoading, setLookupLoading] = useState(true);
+  const [lookupError, setLookupError] = useState("");
+  const [debouncedSearch, setDebouncedSearch] = useState("");
+  const lookupRequest = useRef<Promise<Lookup> | null>(null);
+  const listRequest = useRef(0);
   const [saving, setSaving] = useState(false);
   const [verificationQr, setVerificationQr] = useState("");
 
@@ -251,46 +259,45 @@ export default function QuotationsPage() {
     return body as T;
   }, []);
 
-  const load = useCallback(async () => {
+  // Catalog data is independent of list filters and is fetched once per mount.
+  const loadLookup = useCallback(async () => {
+    setLookupLoading(true);
+    try {
+      if (!lookupRequest.current) lookupRequest.current = api<Lookup>("quotations?lookup=true");
+      const data = await lookupRequest.current;
+      setLookup({ ...emptyLookup, ...data });
+      if (data.role === "client" && data.current_client_id) setClientId(data.current_client_id);
+      setLookupError("");
+    } catch (cause) {
+      lookupRequest.current = null;
+      setLookupError(cause instanceof Error ? cause.message : "Unable to load fees.");
+    } finally { setLookupLoading(false); }
+  }, [api]);
+  useEffect(() => { void loadLookup(); }, [loadLookup]);
+  useEffect(() => {
+    const timer = window.setTimeout(() => { setDebouncedSearch(search.trim()); setPage(1); }, 300);
+    return () => window.clearTimeout(timer);
+  }, [search]);
+  const load = useCallback(async (signal?: AbortSignal) => {
+    const request = ++listRequest.current;
     setLoading(true);
     try {
-      const params = new URLSearchParams({
-        page: String(page),
-        page_size: String(pageSize),
-        direction:ascending?"asc":"desc",
-        sort: quoteSort,
-        country_id: quoteCountry,
-      });
-      if (search.trim()) params.set("search", search.trim());
+      const params = new URLSearchParams({ page: String(page), page_size: String(pageSize), direction: ascending ? "asc" : "desc", sort: quoteSort, country_id: quoteCountry });
+      if (debouncedSearch) params.set("search", debouncedSearch);
       if (status) params.set("status", status);
-      const [list, data] = await Promise.all([
-        api<ListResponse>(`quotations?${params}`),
-        api<Lookup>("quotations?lookup=true"),
-      ]);
+      const list = await api<ListResponse>(`quotations?${params}`, { signal });
+      if (signal?.aborted || request !== listRequest.current) return;
       setRows(list?.data ?? []);
       setTotal(list?.total ?? 0);
-      const normalizedLookup: Lookup = {
-        ...emptyLookup,
-        ...(data ?? {}),
-        claiming_priority_fees: data?.claiming_priority_fees ?? [],
-        state_fees: data?.state_fees ?? [],
-        aripo_country_ids: data?.aripo_country_ids ?? [],
-      };
-      setLookup(normalizedLookup);
-      if (data?.role === "client" && data.current_client_id) {
-        setClientId(data.current_client_id);
-      }
       setError("");
     } catch (cause) {
-      setError(
-        cause instanceof Error ? cause.message : "Unable to load quotations.",
-      );
-    } finally {
-      setLoading(false);
-    }
-  }, [api, page, search, status, pageSize, ascending, quoteSort, quoteCountry]);
+      if (!signal?.aborted && request === listRequest.current) setError(cause instanceof Error ? cause.message : "Unable to load quotations.");
+    } finally { if (!signal?.aborted && request === listRequest.current) setLoading(false); }
+  }, [api, page, debouncedSearch, status, pageSize, ascending, quoteSort, quoteCountry]);
   useEffect(() => {
-    void load();
+    const controller = new AbortController();
+    void load(controller.signal);
+    return () => controller.abort();
   }, [load]);
   useEffect(() => {
     if (!selected?.invoice_verification_token || modal !== "form") {
@@ -316,7 +323,7 @@ export default function QuotationsPage() {
     return result.map((quote) => ({ reference: quote.reference_no, client: quote.client?.company_name, invoice_date: quote.invoice_date, status: quote.status, currency: quote.currency, total: quote.grand_total, subject: toPlainText(quote.subject) }));
   };
   const client = lookup.clients.find((item) => item.id === clientId);
-  const isClientRole = lookup.role === "client";
+  const isClientRole = clientView || lookup.role === "client";
   const projects = lookup.projects.filter(
     (item) => item.client_id === clientId,
   );
@@ -384,7 +391,7 @@ export default function QuotationsPage() {
     class_pricing_rows: fee.class_pricing_rows ?? [],
     class_count: category === "Trademark" ? classCount : 0,
     additional_fee_per_class: 0,
-    requirement_ids: requirementIds.filter((id) =>
+    requirement_ids: (clientView ? availableRequirements.map(requirement => requirement.id) : requirementIds).filter((id) =>
       availableRequirements.some((item) => item.id === id && item.country_id === fee.country_id && availableProcedures.some((procedure) => procedure.id === item.procedure_id && procedure.name === fee.procedure_name)),
     ),
     official_fee: roundFee(fee.official_fee * quantity),
@@ -560,19 +567,20 @@ export default function QuotationsPage() {
       setSubject(
         generateInvoiceSubject({
           item: items[0],
-          clientName: client?.company_name ?? "",
           countryName:
             lookup.countries.find((item) => item.id === items[0].country_id)
               ?.name ?? "",
         }),
       );
     }
-    setCountryIds([]);
-    setProcedureNames([]);
-    setRequirementIds([]);
-    setSelectedClassNumbers([]);
-    setClassCount(1);
-    setClassType("");
+    if (!clientView) {
+      setCountryIds([]);
+      setProcedureNames([]);
+      setRequirementIds([]);
+      setSelectedClassNumbers([]);
+      setClassCount(1);
+      setClassType("");
+    }
     setFeeModal(false);
   };
   const save = async (event: FormEvent) => {
@@ -659,12 +667,14 @@ export default function QuotationsPage() {
   };
   const cancel = async (quote: Quotation) => {
     try {
+      if (saving) return;
+      setSaving(true);
       await api(`quotations/${quote.id}/cancel`, { method: "POST" });
       setNotice("Quotation cancelled.");
       await load();
     } catch (cause) {
       setError(cause instanceof Error ? cause.message : "Unable to cancel quotation.");
-    }
+    } finally { setSaving(false); }
   };
   const remove = async () => {
     if (!selected) return;
@@ -688,12 +698,11 @@ export default function QuotationsPage() {
       category,
       procedure_name: procedureNames[0] || "",
     },
-    clientName: client?.company_name ?? "",
     countryName: lookup.countries.find((item) => item.id === countryIds[0])?.name ?? "",
   });
 
   return (
-    <main className="procedure-page quotation-page">
+    <main className={`procedure-page quotation-page${clientView ? " client-quotation-page" : ""}`}>
       <section>
         <header className="countries-topbar">
           <p>
@@ -706,13 +715,26 @@ export default function QuotationsPage() {
             </b>
           </div>
         </header>
-        <div className="countries-heading">
+        {!clientView && <div className="countries-heading">
           <div>
             <h1>Quotations</h1>
             <p>Create, review, approve, and manage client quotations.</p>
           </div>
           <button className="country-add" type="button" onClick={openNew} data-action="add" title="Add Quotation"><ActionIcon name="add" /><span className="aipt-action-label">Add Quotation</span></button>
         </div>
+        }
+        {clientView && <section className="client-fee-selection" aria-labelledby="client-fee-title">
+          <h2 id="client-fee-title"><svg viewBox="0 0 24 24" aria-hidden="true" fill="currentColor"><path d="M2 3h20l-8 9v8l-4 2V12z" /></svg>Fee Selection</h2>
+          <form onSubmit={event => { event.preventDefault(); setSelected(null); setCart([]); setInvoiceDate(today()); setDiscount(0); setError(""); if (generateFees()) setModal("form"); }}>
+            <label>Services / Project *<select aria-label="Services / Project" value={category} disabled={lookupLoading} onChange={event => { setCategory(event.target.value as Category); setProcedureNames([]); }}><option value="" disabled>Select Services / Project</option>{serviceOptions.map(service => <option key={service.id} value={service.name}>{service.name}</option>)}</select></label>
+            <label>Country *<select aria-label="Country" value={countryIds[0] ?? ""} disabled={lookupLoading} onChange={event => setCountryIds(event.target.value ? [event.target.value] : [])}><option value="">Select Country</option>{lookup.countries.map(country => <option key={country.id} value={country.id}>{country.name}</option>)}</select></label>
+            <div className="client-procedure-field"><span>Procedure * <small>(multiple allowed)</small></span><details><summary>{procedureNames.length ? procedureNames.join(", ") : "Select Procedure"}</summary><div>{availableProcedures.map(procedure => <label key={procedure.id}><input type="checkbox" checked={procedureNames.includes(procedure.name)} onChange={event => setProcedureNames(current => event.target.checked ? [...current, procedure.name] : current.filter(name => name !== procedure.name))} />{procedure.name}</label>)}</div></details></div>
+            <label>Type of class *<select aria-label="Type of class" disabled={category !== "Trademark" || lookupLoading} value={classType} onChange={event => setClassType(event.target.value as ClassType)}><option value="">{category === "Trademark" ? "Select Type of class" : "Not applicable"}</option>{classTypeOptions.map(type => <option key={type}>{type}</option>)}</select></label>
+            <label>Number of classes *<input aria-label="Number of classes" type="number" min="1" max="45" step="1" disabled={category !== "Trademark"} value={classCount} onChange={event => { setClassCount(Number(event.target.value)); setSelectedClassNumbers([]); }} /></label>
+            <button type="submit" disabled={lookupLoading || saving || !lookup.current_client_id}><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" aria-hidden="true"><circle cx="10" cy="10" r="6" /><path d="m15 15 6 6" /></svg>Submit</button>
+          </form>
+          {lookupError && <p role="alert">{lookupError} <button type="button" onClick={() => void loadLookup()}>Retry fees</button></p>}
+        </section>}
         {notice && (
           <div className="country-toast">
             {notice}
@@ -728,12 +750,11 @@ export default function QuotationsPage() {
               value={search}
               onChange={(event) => {
                 setSearch(event.target.value);
-                setPage(1);
               }}
               placeholder="Search invoice, client, country, procedure..."
             />
             <div className="quotation-status-tabs" role="tablist" aria-label="Quotation status">
-              {[["", "All"], ["Pending Approval", "Pending"], ["Approved", "Approved"], ["Cancelled", "Cancelled"]].map(([value, label]) => (
+              {[["", "All"], ["Pending Approval", "Pending"], ["Approved", "Approved"], ["Cancelled", "Cancelled"], ["Rejected", "Rejected"]].map(([value, label]) => (
                 <button key={value || "all"} type="button" role="tab" aria-selected={status === value} className={`${status === value ? "is-active " : ""}${value ? `is-${value.toLowerCase().replace(/\s+/g, "-")}` : "is-all"}`} onClick={() => { setStatus(value); setPage(1); }}>
                   <i aria-hidden="true" />{label}
                 </button>
@@ -761,7 +782,7 @@ export default function QuotationsPage() {
                 </tr>
               </thead>
               <tbody>
-                {loading ? (
+                {loading && !rows.length ? (
                   <tr>
                     <td colSpan={10} className="country-state">
                       Loading quotations...
@@ -809,7 +830,7 @@ export default function QuotationsPage() {
                         <span
                           className={`quotation-status ${quote.status.toLowerCase().replace(/\s+/g, "-")}`}
                         >
-                          {quote.status}
+                          {quote.status === "Pending Approval" ? "Pending" : quote.status}
                         </span>
                       </td>
                       <td>{dateText(quote.invoice_date)}</td>
@@ -863,8 +884,10 @@ export default function QuotationsPage() {
             </table>
           </div>
           <TablePagination page={page} pageSize={pageSize} total={total} onPageChange={setPage} onPageSizeChange={setPageSize} loading={loading} />
+          {clientView && <div className="client-status-legend"><b>Status Colors:</b>{["Pending", "Approved", "Rejected", "Cancelled"].map(label => <span key={label} className={label.toLowerCase()}><i aria-hidden="true" />{label}<small>(View / PDF)</small></span>)}</div>}
         </section>
-        {modal === "form" && (
+        {modal === "form" && clientView && <ClientQuotationPreview invoice={{ reference_no: "Assigned on submission", invoice_date: invoiceDate, client_matter_ref: clientMatterRef, client, currency: "USD", vatable, vat_rate: 0, total_vat: vatTotal, discount, grand_total: grandTotal, quotation_items: cart.map(item => ({ ...item, country: lookup.countries.find(country => country.id === item.country_id) })) }} requirements={lookup.requirements.map(requirement => ({ ...requirement, category: lookup.services.find(service => service.id === requirement.service_id)?.name }))} saving={saving} error={error} onClose={() => setModal(null)} onSubmit={save} />}
+        {modal === "form" && !clientView && (
           <InvoiceModal
             client={client}
             clientId={clientId}
@@ -911,8 +934,8 @@ export default function QuotationsPage() {
             availableRequirements={availableRequirements}
             selectionFees={selectionFees}
             allExactFeesFound={allExactFeesFound}
-            loadingFees={loading}
-            retryFees={() => void load()}
+            loadingFees={lookupLoading}
+            retryFees={() => { lookupRequest.current = null; void loadLookup(); }}
             countries={lookup.countries}
             generateFees={generateFees}
             cart={cart}
@@ -1734,4 +1757,13 @@ function ViewModal({
       </section>
     </div>
   );
+}
+
+function ClientQuotationPreview({ invoice, requirements, saving, error, onClose, onSubmit }: { invoice: import('../../src/components/QuotationDocument').PrintableQuotation; requirements: import('../../src/components/QuotationDocument').QuotationRequirement[]; saving: boolean; error: string; onClose: () => void; onSubmit: (event: FormEvent) => void }) {
+  return <div className="quotation-backdrop client-quotation-backdrop"><section className="client-quotation-preview" role="dialog" aria-modal="true" aria-label="Submit quotation">
+    <button type="button" className="client-preview-close" aria-label="Close quotation preview" onClick={onClose} disabled={saving}>×</button>
+    <QuotationDocument invoice={invoice} requirements={requirements} qrDataUrl="" qrPlaceholder="Verification available after approval" />
+    {error && <p className="country-page-error" role="alert">{error}</p>}
+    <form onSubmit={onSubmit}><footer><button type="button" onClick={onClose} disabled={saving}>Cancel</button><button type="submit" disabled={saving}>{saving ? "Submitting…" : "Submit"}</button></footer></form>
+  </section></div>;
 }

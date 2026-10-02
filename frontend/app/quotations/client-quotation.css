@@ -1,0 +1,654 @@
+/* Client quotation reference: cyan controls, pale panels and compact Arial text. */
+.client-quotation-page {
+  --primary-color: #00afd0;
+  --primary-color-active: #008eac;
+  --primary-color-soft: #e4faff;
+  --primary-color-border: #a6eafa;
+  --primary-color-focus: #c5f4fc;
+  background: linear-gradient(120deg, #effcff, #f8feff) !important;
+  color: #009fc4;
+  font-family: Arial, Helvetica, sans-serif;
+  padding: 18px 20px;
+  min-height: calc(100vh - 70px);
+}
+.client-quotation-page * {
+  box-sizing: border-box;
+}
+.client-quotation-page .client-fee-selection,
+.client-quotation-page .country-table-card {
+  margin: 0 0 14px !important;
+  border: 1px solid #a6eafa !important;
+  border-radius: 9px !important;
+  background: #f3fcfe !important;
+  box-shadow: none !important;
+  overflow: visible;
+}
+.client-fee-selection h2 {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  margin: 0;
+  padding: 9px 12px;
+  background: linear-gradient(110deg, #e5faff, #d8f8fd);
+  font-size: 19px;
+  color: #00afd0;
+  border-radius: 9px 9px 0 0;
+}
+.client-fee-selection h2 svg {
+  width: 20px;
+  height: 20px;
+}
+.client-fee-selection form {
+  display: grid;
+  grid-template-columns: 1.15fr 1.08fr 1.15fr 1.05fr 0.9fr 105px;
+  gap: 18px;
+  align-items: end;
+  padding: 10px 18px 18px;
+}
+.client-fee-selection label,
+.client-procedure-field {
+  display: grid;
+  gap: 7px;
+  font-size: 11px;
+  font-weight: 700;
+  color: #00a6c9;
+  min-width: 0;
+}
+.client-fee-selection :is(select, input[type="number"]),
+.client-procedure-field summary {
+  width: 100%;
+  height: 34px;
+  border: 1px solid #86def5;
+  border-radius: 6px;
+  background: #fbfeff;
+  color: #00a6c9;
+  padding: 7px 11px;
+  font:
+    11px Arial,
+    Helvetica,
+    sans-serif;
+}
+.client-fee-selection button[type="submit"] {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 9px;
+  height: 34px;
+  border: 1px solid #00afd0;
+  border-radius: 7px;
+  background: #00afd0;
+  color: white;
+  font-size: 12px;
+  font-weight: 700;
+  cursor: pointer;
+}
+.client-fee-selection button:disabled {
+  opacity: 0.5;
+  cursor: default;
+}
+.client-procedure-field small {
+  font-size: 9px;
+  font-weight: 400;
+}
+.client-procedure-field details {
+  position: relative;
+}
+.client-procedure-field summary {
+  cursor: pointer;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+  overflow: hidden;
+  list-style: none;
+  padding-right: 23px;
+}
+.client-procedure-field summary:after {
+  content: "⌄";
+  position: absolute;
+  right: 10px;
+}
+.client-procedure-field details > div {
+  position: absolute;
+  z-index: 4;
+  top: 38px;
+  left: 0;
+  right: 0;
+  max-height: 220px;
+  overflow: auto;
+  background: white;
+  border: 1px solid #86def5;
+  border-radius: 6px;
+  box-shadow: 0 8px 20px #004e681a;
+  padding: 8px;
+}
+.client-procedure-field details label {
+  display: flex;
+  align-items: center;
+  padding: 7px;
+  font-weight: 400;
+}
+.client-procedure-field input {
+  accent-color: #00afd0;
+}
+.client-quotation-page .quotation-toolbar {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 7px;
+  padding: 9px 8px;
+  background: transparent;
+  border: 0;
+}
+.client-quotation-page .quotation-toolbar > input {
+  flex: 1 1 230px;
+  min-width: 180px;
+}
+.client-quotation-page .quotation-toolbar :is(input, select) {
+  height: 34px;
+  min-height: 34px !important;
+  border: 1px solid #a1e5f8 !important;
+  border-radius: 7px !important;
+  background: #fbfeff !important;
+  color: #00a6c9 !important;
+  padding: 7px 10px;
+  font:
+    11px Arial,
+    Helvetica,
+    sans-serif;
+}
+.client-quotation-page .quotation-toolbar > span {
+  font-size: 11px;
+  white-space: nowrap;
+}
+.client-quotation-page .quotation-toolbar input::placeholder {
+  color: #00a6c9;
+  opacity: 1;
+}
+.client-quotation-page .quotation-status-tabs button {
+  height: 34px;
+  padding: 0 11px;
+  border: 1px solid #94e0f6;
+  background: #f5fdff;
+  color: #00a6c9;
+  font-size: 11px;
+  box-shadow: none;
+}
+.client-quotation-page .quotation-status-tabs button i {
+  background: #00afd0;
+}
+.client-quotation-page .quotation-status-tabs button.is-active {
+  background: #00afd0 !important;
+  color: white !important;
+}
+.client-quotation-page .quotation-status-tabs button.is-active i {
+  background: white;
+}
+.client-quotation-page .data-toolbar {
+  padding: 0 8px 10px;
+}
+.client-quotation-page .data-actions {
+  justify-content: flex-end;
+}
+.client-quotation-page .data-actions button {
+  height: 33px;
+  padding: 6px 12px;
+  border: 1px solid #94e0f6 !important;
+  border-radius: 6px;
+  background: #fbfeff !important;
+  color: #00a6c9 !important;
+  box-shadow: none;
+  font-size: 11px;
+}
+.client-quotation-page .country-table-wrap {
+  margin: 0 7px;
+  border: 1px solid #b0eafa;
+  border-radius: 5px;
+  overflow: auto;
+}
+.client-quotation-page .country-table-wrap table {
+  width: 100%;
+  min-width: 1050px;
+  border-collapse: collapse;
+  table-layout: auto;
+}
+.client-quotation-page .country-table-wrap th {
+  height: 37px;
+  padding: 10px 13px !important;
+  background: #e2f9fe !important;
+  color: #00a6c9 !important;
+  font-size: 9px !important;
+  letter-spacing: 0;
+  text-align: left;
+  white-space: nowrap;
+  border-right: 1px solid #bdeefa !important;
+}
+.client-quotation-page .country-table-wrap td {
+  padding: 7px 13px !important;
+  height: 44px;
+  color: #00a6c9 !important;
+  background: transparent !important;
+  font-size: 12px;
+  border: 1px solid #c4eff9 !important;
+  vertical-align: middle;
+  white-space: nowrap;
+}
+.client-quotation-page .country-table-wrap tr:hover td {
+  background: #eafaff !important;
+}
+.client-quotation-page .aipt-sort {
+  color: inherit;
+  font: inherit;
+}
+.client-quotation-page .quotation-actions {
+  display: table-cell !important;
+  white-space: nowrap;
+}
+.client-quotation-page .quotation-actions button {
+  display: inline-flex;
+  margin-right: 5px;
+  width: 32px;
+  height: 32px;
+  padding: 6px;
+  border: 1px solid #86def5 !important;
+  border-radius: 6px !important;
+  background: #fbfeff !important;
+  color: #00a6c9 !important;
+  box-shadow: none !important;
+}
+.client-quotation-page .quotation-actions button:disabled {
+  opacity: 0.45;
+}
+.client-quotation-page .quotation-status {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 12px;
+  border-radius: 20px;
+  background: #bff3ff;
+  color: #00a6c9;
+  font-size: 11px;
+  font-weight: 700;
+  white-space: nowrap;
+}
+.client-quotation-page .quotation-status:before {
+  content: "";
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: currentColor;
+}
+.client-quotation-page .quotation-status.approved {
+  background: #d3f9e5;
+  color: #26af65;
+}
+.client-quotation-page .quotation-status.rejected {
+  background: #ffdae7;
+  color: #ff477e;
+}
+.client-quotation-page .quotation-status.cancelled {
+  background: #d8eff6;
+  color: #5a9fb9;
+}
+.client-quotation-page .aipt-pagination {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 14px;
+  flex-wrap: wrap;
+  padding: 8px 16px;
+  color: #00a6c9;
+  font-size: 11px;
+  background: transparent;
+  border: 0;
+}
+.client-quotation-page .aipt-pagination label,
+.client-quotation-page .aipt-pagination nav {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+}
+.client-quotation-page .aipt-pagination :is(button, select) {
+  height: 31px;
+  border: 1px solid #a1e5f8;
+  border-radius: 6px;
+  background: #f7fdff;
+  color: #00a6c9;
+  padding: 5px 11px;
+  font: 11px Arial;
+}
+.client-quotation-page .aipt-pagination button:disabled {
+  opacity: 0.45;
+}
+.client-status-legend {
+  display: flex;
+  gap: 32px;
+  align-items: center;
+  flex-wrap: wrap;
+  margin: 0 7px 10px;
+  padding: 9px 15px;
+  border: 1px solid #b0eafa;
+  border-radius: 6px;
+  font-size: 11px;
+}
+.client-status-legend > span {
+  position: relative;
+  padding-left: 20px;
+  color: #00a6c9;
+}
+.client-status-legend small {
+  display: block;
+  font-size: 10px;
+  margin-top: 5px;
+}
+.client-status-legend i {
+  position: absolute;
+  left: 0;
+  top: 1px;
+  width: 12px;
+  height: 12px;
+  border-radius: 50%;
+  background: #2adaf5;
+}
+.client-status-legend .approved i {
+  background: #2eb568;
+}
+.client-status-legend .rejected i {
+  background: #ff477e;
+}
+.client-status-legend .cancelled i {
+  background: #5a9fb9;
+}
+.client-quotation-backdrop {
+  background: #244b61a6;
+  backdrop-filter: none;
+  padding: 16px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+.client-quotation-preview {
+  position: relative;
+  width: min(510px, calc(100vw - 32px));
+  max-height: calc(100dvh - 32px);
+  overflow: auto;
+  border: 1px solid #67d7ef;
+  border-radius: 6px;
+  background: #fbfeff;
+  color: #0083a6;
+  font-family: Arial, Helvetica, sans-serif;
+  padding: 25px 14px 12px;
+  box-shadow: 0 15px 50px #193e5733;
+}
+.client-preview-close {
+  position: absolute;
+  right: 8px;
+  top: 4px;
+  border: 0;
+  background: transparent;
+  color: #0083a6;
+  font-size: 20px;
+  cursor: pointer;
+}
+.client-quotation-preview .quotation-footer-frame {
+  display: none;
+}
+.client-quotation-preview .quotation-pagination {
+  margin: 0;
+  table-layout: fixed;
+  min-width: 0 !important;
+  max-width: 100% !important;
+  width: 100% !important;
+}
+.client-quotation-preview .quotation-pagination > tbody > tr > td {
+  padding: 0 !important;
+  border: 0 !important;
+  min-width: 0 !important;
+}
+.client-quotation-preview .quotation-pagination > tfoot {
+  display: none;
+}
+.client-quotation-preview .quotation-sheet {
+  width: 100%;
+  margin: 0;
+  padding: 0;
+  background: transparent;
+  box-shadow: none;
+  font: 10px/1.3 Arial;
+  color: #0083a6;
+}
+.client-quotation-preview .quotation-heading {
+  display: grid;
+  grid-template-columns: 98px minmax(0, 1fr) 65px;
+  gap: 12px;
+  align-items: center;
+  border-bottom: 1px solid #00afd0;
+  padding: 0 0 8px;
+  margin-bottom: 8px;
+}
+.client-quotation-preview .quotation-logo {
+  width: 98px;
+  height: 72px;
+}
+.client-quotation-preview .quotation-sender h2 {
+  font: 700 10px/1.3 Arial;
+  letter-spacing: 0;
+  margin: 0 0 4px;
+  color: #0083a6;
+}
+.client-quotation-preview .quotation-sender p {
+  font: 9px/1.45 Arial;
+  margin: 0;
+  color: #0083a6;
+}
+.client-quotation-preview .quotation-qr {
+  width: 65px;
+  font-size: 8px;
+  color: #0083a6;
+}
+.client-quotation-preview .quotation-qr small {
+  display: none;
+}
+.client-quotation-preview .quotation-parties {
+  grid-template-columns: 1fr 1fr;
+  gap: 14px;
+  margin: 0 0 8px;
+}
+.client-quotation-preview .quotation-recipient p {
+  font: 10px/1.4 Arial;
+  margin: 0 0 3px;
+}
+.client-quotation-preview .quotation-meta {
+  padding: 7px 9px;
+  font-size: 8px;
+  min-height: 0;
+  background: #dff8fd;
+  border-radius: 4px;
+  width: auto !important;
+  min-width: 0 !important;
+}
+.client-quotation-preview .quotation-meta > div {
+  grid-template-columns: 85px 1fr;
+  gap: 4px;
+  padding: 2px 0;
+}
+.client-quotation-preview .quotation-tab {
+  font: 700 11px/1.2 Arial;
+  padding: 3px 22px 3px 5px;
+  border-radius: 5px 8px 0 4px;
+  background: #00abc4;
+  margin: 0;
+  color: white;
+}
+.client-quotation-preview .quotation-sheet table {
+  border: 1px solid #83e5f5;
+  border-radius: 4px;
+  width: 100% !important;
+  min-width: 0 !important;
+  max-width: 100%;
+  margin: 0;
+  table-layout: fixed !important;
+}
+.client-quotation-preview .quotation-sheet :is(th, td) {
+  font: 8px/1.3 Arial;
+  border-color: #83e5f5;
+  background: #e0f8fd;
+  color: #0083a6;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+  font-size: 8px !important;
+  padding: 5px 7px !important;
+  height: auto !important;
+  min-width: 0 !important;
+  border-right: 1px solid #83e5f5 !important;
+  border-bottom: 1px solid #83e5f5 !important;
+  text-transform: none;
+  letter-spacing: 0;
+  width: auto !important;
+}
+.client-quotation-preview .quotation-sheet th {
+  font-weight: 700;
+}
+.client-quotation-preview .quotation-fees {
+  margin-top: 7px;
+}
+.client-quotation-preview .quotation-fees th {
+  height: 28px;
+  text-align: center;
+}
+.client-quotation-preview .quotation-fees td {
+  text-align: center;
+}
+.client-quotation-preview .quotation-fees :is(th, td):first-child {
+  text-align: left;
+}
+.client-quotation-preview .quotation-fees small {
+  font-size: 7px;
+  line-height: 1.2;
+  margin-top: 2px;
+}
+.client-quotation-preview .quotation-totals {
+  width: 200px;
+  max-width: 100%;
+  margin: 6px 0 8px auto;
+  font-size: 9px;
+  min-width: 0 !important;
+}
+.client-quotation-preview .quotation-totals > div {
+  padding: 4px 5px;
+}
+.client-quotation-preview .quotation-totals strong {
+  font-size: 10px;
+}
+.client-quotation-preview .quotation-totals .quotation-due {
+  font-size: 11px;
+  padding: 5px;
+  border-radius: 5px;
+  letter-spacing: 0;
+}
+.client-quotation-preview footer {
+  display: flex;
+  justify-content: flex-end;
+  gap: 9px;
+  padding-top: 10px;
+  border-top: 1px solid #d7f4fb;
+}
+.client-quotation-preview footer button {
+  min-width: 70px;
+  height: 29px;
+  border: 1px solid #a1e5f8;
+  border-radius: 5px;
+  background: #f6fdff;
+  color: #008eac;
+  font-size: 10px;
+  cursor: pointer;
+}
+.client-quotation-preview footer button[type="submit"] {
+  background: #00a6be;
+  color: white;
+  border-color: #00a6be;
+}
+.client-quotation-preview button:disabled {
+  opacity: 0.5;
+  cursor: default;
+}
+.client-quotation-page :is(button, input, select, summary):focus-visible,
+.client-quotation-preview button:focus-visible {
+  outline: 2px solid #007f9a;
+  outline-offset: 2px;
+}
+@media (max-width: 1100px) {
+  .client-fee-selection form {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 12px;
+  }
+  .client-quotation-page .quotation-toolbar > input {
+    flex-basis: 100%;
+  }
+}
+@media (max-width: 600px) {
+  .client-quotation-page {
+    padding: 14px 10px;
+  }
+  .client-fee-selection form {
+    grid-template-columns: 1fr 1fr;
+    padding: 12px;
+    gap: 12px;
+  }
+  .client-status-legend {
+    gap: 15px;
+  }
+  .client-quotation-preview .quotation-heading {
+    grid-template-columns: 70px 1fr;
+    gap: 8px;
+  }
+  .client-quotation-preview .quotation-logo {
+    width: 70px;
+    height: 56px;
+  }
+  .client-quotation-preview .quotation-qr {
+    display: none;
+  }
+  .client-quotation-preview .quotation-parties {
+    grid-template-columns: 1fr;
+  }
+  .client-quotation-preview .quotation-sheet :is(th, td) {
+    padding: 4px 3px;
+  }
+}
+/* Prevent legacy procedure-table dimensions from leaking into the shared preview. */
+.client-quotation-preview .quotation-sheet .quotation-fees th {
+  height: 28px !important;
+}
+.client-quotation-preview .quotation-sheet .quotation-heading {
+  min-width: 0;
+  padding: 0 0 8px !important;
+}
+.client-quotation-page .quotation-status.pending-approval {
+  background: #bff3ff;
+  color: #00a6c9;
+}
+.client-quotation-page .country-table-wrap td b,
+.client-quotation-page .client-status-legend b,
+.client-quotation-page .aipt-pagination span,
+.client-quotation-page .aipt-pagination label {
+  color: #00a6c9;
+}
+.client-main:has(.client-quotation-page) .client-topbar {
+  background: linear-gradient(110deg, #f2fcff, #e8fbff);
+  color: #00a6c9;
+  border-bottom: 1px solid #c4eff9;
+}
+.client-main:has(.client-quotation-page) .client-topbar :is(p, b, strong) {
+  color: #00a6c9;
+}
+.client-main:has(.client-quotation-page) .client-topbar small {
+  color: #009ac0;
+}
+.client-quotation-preview .quotation-qr span {
+  min-width: 0;
+  max-width: 100%;
+  white-space: normal;
+  overflow-wrap: anywhere;
+  text-align: center;
+  font-size: 8px;
+  line-height: 1.4;
+}

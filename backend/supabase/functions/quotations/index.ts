@@ -290,9 +290,18 @@ Deno.serve(async (request) => {
       const sortFields = ['created_at', 'reference_no', 'grand_total', 'status', 'invoice_date'];
       const sort = sortFields.includes(url.searchParams.get('sort') ?? '') ? url.searchParams.get('sort')! : 'created_at';
       const country = url.searchParams.get('country_id');
+      // Use database pagination for the common unfiltered list; avoid loading every quotation.
+      if (!search && !country) {
+        let query = db.from('quotations').select(listSelect, { count: 'exact' }).is('deleted_at', null).order(sort, { ascending: url.searchParams.get('direction') === 'asc' }).order('id');
+        if (profile.role === 'client') query = query.eq('client_id', profile.client_id);
+        if (status) query = query.eq('status', status);
+        const { data, error, count } = await query.range((page - 1) * pageSize, page * pageSize - 1);
+        if (error) throw error;
+        return json({ data: (data ?? []).map(withQuotationValidity), total: count ?? 0, page, page_size: pageSize });
+      }
       const { data, error } = await allRows(() => {
         let query = db.from('quotations').select(listSelect).is('deleted_at', null).order(sort, { ascending: url.searchParams.get('direction') === 'asc' }).order('id');
-        if (profile.role === 'client') query = query.eq('client_id', profile.client_id).eq('status', 'Approved');
+        if (profile.role === 'client') query = query.eq('client_id', profile.client_id);
         if (status) query = query.eq('status', status);
         return query;
       });
