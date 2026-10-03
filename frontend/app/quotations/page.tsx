@@ -860,7 +860,7 @@ export default function QuotationsPage() {
                           onClick={() => openEdit(quote)}
                           disabled={["Approved", "Posted", "Cancelled"].includes(quote.status)}
                          data-action="edit" data-icon-only={isClientRole ? undefined : "true"} title="Edit quotation"><ActionIcon name="edit" /><span className="aipt-action-label">{isClientRole ? "Edit & update" : "Edit"}</span></button>}
-                        {!isClientRole && <button
+                        {(!isClientRole || quote.status === "Pending Approval") && <button
                           type="button"
                           onClick={() => {
                             setSelected(quote);
@@ -1460,7 +1460,7 @@ function InvoiceModal(props: any) {
               className="outline-action generate-fees"
               type="button"
               onClick={() => editingRow === null ? generateFees() : updateRow()}
-             disabled={Boolean(cartBlocker) || saving} aria-describedby={cartBlocker ? "cart-blocker" : undefined} data-action={editingRow === null ? "add" : "update"} title={editingRow === null ? "Add to cart" : "Update cart item"}><ActionIcon name={editingRow === null ? "add" : "update"} /><span className="aipt-action-label">{editingRow === null ? "Add to cart" : "Update cart item"}</span></button>
+             disabled={Boolean(cartBlocker) || saving} aria-describedby={cartBlocker ? "cart-blocker" : undefined} data-local-action="true" data-action={editingRow === null ? "add" : "update"} title={editingRow === null ? "Add to cart" : "Update cart item"}><ActionIcon name={editingRow === null ? "add" : "update"} /><span className="aipt-action-label">{editingRow === null ? "Add to cart" : "Update cart item"}</span></button>
             {editingRow !== null && <button type="button" onClick={cancelEdit}>Cancel edit</button>}
           </div>
           <div className="quotation-section">
@@ -1651,7 +1651,7 @@ function InvoiceModal(props: any) {
           {error && <p className="quotation-error" role="alert">{error}</p>}
           <footer className="modal-actions">
             <button type="button" onClick={onClose} data-action="cancel" title="Cancel"><ActionIcon name="cancel" /><span className="aipt-action-label">Cancel</span></button>
-            <button className="primary" type="submit" disabled={saving || editingRow !== null} data-action="update" title="Update Quotation"><ActionIcon name="update" /><span className="aipt-action-label">
+            <button className="primary" type="submit" disabled={saving || editingRow !== null} data-action={selected ? "update" : "add"} title="Update Quotation"><ActionIcon name="update" /><span className="aipt-action-label">
               {saving ? "Saving..." : selected ? "Update Quotation" : "Save Quotation"}
             </span></button>
           </footer>
@@ -1785,6 +1785,6 @@ function ClientQuotationPreview({ invoice, requirements, saving, error, onClose,
     <button type="button" className="client-preview-close" aria-label="Close quotation preview" onClick={onClose} disabled={saving}>×</button>
     <QuotationDocument invoice={invoice} requirements={requirements} qrDataUrl="" qrPlaceholder="Verification available after approval" />
     {error && <p className="country-page-error" role="alert">{error}</p>}
-    <form onSubmit={onSubmit}><footer><button type="button" onClick={onClose} disabled={saving}>Cancel</button><button type="submit" disabled={saving}>{saving ? "Submitting…" : "Submit"}</button></footer></form>
+    <form onSubmit={onSubmit}><footer><button type="button" onClick={onClose} disabled={saving}>Cancel</button><button data-action="add" type="submit" disabled={saving}>{saving ? "Submitting…" : "Submit"}</button></footer></form>
   </section></div>;
 }

@@ -1,3 +1,4 @@
+import { clientPermissionResponse, actionForRequest } from '../_shared/client-permissions.ts';
 import { toPlainText } from '../_shared/plain-text.ts';
 import { createClient } from 'npm:@supabase/supabase-js@2';
 const cors = { 'Access-Control-Allow-Origin': '*', 'Access-Control-Allow-Headers': 'authorization, apikey, content-type, x-client-info', 'Access-Control-Allow-Methods': 'GET, POST, PUT, DELETE, OPTIONS' };
@@ -25,7 +26,7 @@ Deno.serve(async (request) => {
   const last = url.pathname.split('/').filter(Boolean).at(-1);
   const id = last === 'requirements' ? null : last;
   try {
-    if (role !== 'administrator' && request.method !== 'GET') return json({ error: 'Administrator access is required.' }, 403);
+    const denied = await clientPermissionResponse(db, user.id, 'requirements', actionForRequest(request), cors); if (denied) return denied;
     if (request.method === 'GET' && id) {
       const result = await db.from('requirements').select(select).eq('id', id).is('deleted_at', null).maybeSingle();
       if (result.error) throw result.error;

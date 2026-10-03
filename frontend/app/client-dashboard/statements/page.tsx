@@ -1,3 +1,6 @@
+'use client';
 import ClientStatementsPage from '../../../src/components/ClientStatementsTablePage';
-
-export default ClientStatementsPage;
+import dynamic from 'next/dynamic';
+const AdminStatementsPage = dynamic(() => import('../../../src/components/AdminStatementsPage'));
+import ClientManagement from '../../../src/components/ClientManagement';
+export default function StatementsPage() { return <ClientManagement manager={<AdminStatementsPage />}><ClientStatementsPage /></ClientManagement>; }

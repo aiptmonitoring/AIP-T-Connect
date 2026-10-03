@@ -1,8 +1,8 @@
-.client-home-shell{--home-teal:#08a5bd;--home-text:#0099b2;background:#fbfeff;color:var(--home-text);font-family:Arial,Helvetica,sans-serif}
+.client-home-shell{--home-teal:#08a8c0;--home-text:#08a5bd;background:#fbfeff;color:var(--home-text);font-family:Arial,Helvetica,sans-serif}
 .client-home-shell .client-main{background:linear-gradient(120deg,#f6fdfe,#fff);min-height:100vh}
-.client-home-header{height:88px;display:flex;align-items:center;gap:28px;padding:0 30px 0 35px;border-bottom:2px solid #dcf5f9;background:#ffffffed}
-.client-home-brand{flex:none;display:flex;flex-direction:column;align-items:center;justify-content:center;width:237px;height:46px;padding-right:36px;border-right:2px solid #b8eaf2;text-decoration:none;color:#19adc3}
-.client-home-brand strong{font:700 42px/.95 Georgia,'Times New Roman',serif;letter-spacing:-1px}
+.client-home-header{height:76px;display:flex;align-items:center;gap:28px;padding:0 16px 0 22px;border-bottom:1px solid #b8edf5;background:#ffffffed}
+.client-home-brand{flex:none;display:flex;flex-direction:column;align-items:center;justify-content:center;width:224px;height:44px;padding-right:36px;border-right:1px solid #b8eaf2;text-decoration:none;color:#19adc3}
+.client-home-brand strong{font:700 40px/.95 Georgia,'Times New Roman',serif;letter-spacing:-1px}
 .client-home-brand small{margin-top:7px;font-size:11px;font-weight:700;letter-spacing:2.3px;white-space:nowrap}
 .client-home-breadcrumb{display:flex;align-items:center;gap:19px;color:#14abc4;font-size:18px;white-space:nowrap}
 .client-home-breadcrumb a{display:flex;align-items:center;gap:18px;color:inherit;text-decoration:none}
@@ -18,33 +18,31 @@
 .client-home-account-menu .account-menu-summary small{font-size:13px;color:#20aec6;margin-top:5px}
 .client-home-account-menu .account-menu-chevron{display:none}
 .client-home-account-menu .account-menu-popover{top:calc(100% + 15px);bottom:auto;left:auto;right:0}
-.client-home{padding:15px 28px 70px;max-width:1800px;margin:0 auto}
-.client-welcome,.client-home-card{position:relative;isolation:isolate;overflow:hidden;background:linear-gradient(115deg,#e7f8fb,#e5f8fb 58%,#dcf5f9);border-radius:12px}
+.client-home{padding:15px clamp(28px,3.9vw,70px) 70px;max-width:1807px;margin:0 auto}
+.client-welcome,.client-home-card{position:relative;isolation:isolate;overflow:hidden;background:linear-gradient(115deg,#e3f8fb,#e1f7fb 58%,#d9f5f9);border-radius:12px}
 .client-welcome:before,.client-welcome:after,.client-home-card:before,.client-home-card:after{content:'';position:absolute;z-index:-1;pointer-events:none}
-.client-welcome{display:flex;align-items:center;gap:37px;min-height:159px;padding:25px 33px;margin-bottom:25px}
+.client-welcome{display:flex;align-items:center;gap:34px;min-height:152px;padding:25px 32px;margin-bottom:26px}
 .client-welcome:before{width:650px;height:240px;right:-100px;bottom:-141px;border-radius:50%;background:#effcfd;transform:rotate(-14deg)}
 .client-welcome:after{width:500px;height:250px;right:-145px;bottom:-155px;border-radius:55% 0 0 0;background:linear-gradient(160deg,#c1edf3 0 45%,#abe5ef 45% 63%,#beeef4 63%);transform:rotate(-27deg)}
-.client-welcome-avatar{display:grid;place-items:center;flex:none;width:69px;height:69px;border-radius:50%;background:linear-gradient(135deg,#16acc3,#10a6bf);color:white}
+.client-welcome-avatar{display:grid;place-items:center;flex:none;width:66px;height:66px;border-radius:50%;background:linear-gradient(135deg,#16acc3,#10a6bf);color:white}
 .client-welcome-avatar svg{width:43px;height:43px;fill:currentColor;stroke:none}
-.client-welcome h1{margin:0;min-width:0;color:#0096af;font-size:36px;line-height:1.2;letter-spacing:-.5px;overflow-wrap:anywhere}
+.client-welcome h1{margin:0;min-width:0;color:var(--home-text);font-size:36px;line-height:1.2;letter-spacing:-.5px;overflow-wrap:anywhere}
 .client-welcome h1 span{display:block;margin-bottom:2px;font-size:30px;font-weight:400;letter-spacing:0}.client-welcome h1 strong{font-weight:750}
-.client-home-grid{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:32px 20px;padding:0 2px}
-.client-home-card{display:flex;align-items:flex-start;gap:23px;min-height:186px;padding:20px 18px;border:1px solid #b8eefa;text-decoration:none;color:#0099b2;transition:box-shadow .18s,transform .18s}
-.client-home-card:before{width:135%;height:130px;left:16%;bottom:-84px;border-radius:50% 0 0 0;background:#c0edf4;transform:rotate(-20deg)}
-.client-home-card:after{width:73%;height:160px;right:-28%;bottom:-100px;border-radius:65% 0 0 0;background:#b0e7f0;transform:rotate(-30deg)}
-.client-home-card-icon{display:grid;place-items:center;flex:none;width:76px;height:74px;border-radius:20px;background:linear-gradient(140deg,#12a8c0,#19aec5);color:#fff}
+.client-home-grid{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:30px 20px;padding:0 2px}
+.client-home-card{display:flex;align-items:flex-start;gap:22px;min-height:176px;padding:18px 16px;border:1px solid #8ee4f5;text-decoration:none;color:var(--home-text);transition:box-shadow .18s,transform .18s}
+.client-home-card-icon{display:grid;place-items:center;flex:none;width:75px;height:72px;border-radius:20px;background:linear-gradient(140deg,#12a8c0,#19aec5);color:#fff}
 .client-home-card-icon svg{width:45px;height:45px}
-.client-home-card-label{align-self:flex-start;margin-top:24px;min-width:0;font-size:25px;font-weight:700;letter-spacing:-.5px;line-height:1.15}
-.client-home-card-arrow{flex:none;margin:25px 0 0 auto;color:#0fabc4}.client-home-card-arrow svg{width:31px;height:31px}
+.client-home-card-label{align-self:flex-start;margin-top:21px;min-width:0;font-size:25px;font-weight:700;letter-spacing:-.5px;line-height:1.15}
+.client-home-card-arrow{flex:none;margin:24px 0 0 auto;color:#0fabc4}.client-home-card-arrow svg{width:31px;height:31px}
 .client-home-card:hover{transform:translateY(-2px);box-shadow:0 8px 24px #009eb51a}
 .client-home-shell a:focus-visible,.client-home-shell button:focus-visible{outline:3px solid #007e96;outline-offset:4px}
-@media(min-width:1100px) and (max-width:1399px){.client-home-card{gap:16px;padding:20px 16px}.client-home-card-icon{width:62px;height:64px;border-radius:17px}.client-home-card-icon svg{width:39px;height:39px}.client-home-card-label{font-size:21px;margin-top:21px}.client-home-card-arrow{margin-top:23px}.client-home-card-arrow svg{width:25px;height:25px}}
-@media(max-width:1099px){.client-home-grid{grid-template-columns:repeat(2,minmax(0,1fr));gap:22px}.client-home-header{gap:20px;padding:0 24px}.client-home-brand{width:210px;padding-right:24px}.client-home-breadcrumb{font-size:16px;gap:12px}.client-home-account-menu .account-menu-summary{display:none}.client-home-card{min-height:174px}}
+@media(min-width:1200px) and (max-width:1650px){.client-home-card{gap:16px;padding:20px 16px}.client-home-card-icon{width:62px;height:64px;border-radius:17px}.client-home-card-icon svg{width:39px;height:39px}.client-home-card-label{font-size:clamp(18px,1.4vw,23px);margin-top:21px}.client-home-card-arrow{margin-top:23px}.client-home-card-arrow svg{width:25px;height:25px}}
+@media(max-width:1199px){.client-home-grid{grid-template-columns:repeat(2,minmax(0,1fr));gap:22px}.client-home-header{gap:20px;padding:0 24px}.client-home-brand{width:210px;padding-right:24px}.client-home-breadcrumb{font-size:16px;gap:12px}.client-home-account-menu .account-menu-summary{display:none}.client-home-card{min-height:174px}}
 @media(max-width:600px){.client-home-header{height:78px;padding:0 16px;gap:15px;flex-wrap:wrap}.client-home-brand{width:auto;padding:0 15px 0 0;height:40px}.client-home-brand strong{font-size:29px}.client-home-brand small{font-size:7px;letter-spacing:1.4px}.client-home-breadcrumb{gap:8px;font-size:13px}.client-home-breadcrumb a{gap:0}.client-home-breadcrumb a span{display:none}.client-home-breadcrumb svg{width:20px;height:20px}.client-home-account{gap:0}.client-home-profile{display:none}.client-home-account-menu .account-menu-avatar{width:36px;height:36px;flex-basis:36px;font-size:12px}.client-home{padding:16px 16px 40px}.client-welcome{gap:18px;min-height:142px;padding:24px 20px;margin-bottom:20px}.client-welcome-avatar{width:52px;height:52px}.client-welcome-avatar svg{width:33px;height:33px}.client-welcome h1{font-size:25px}.client-welcome h1 span{font-size:22px}.client-home-grid{grid-template-columns:1fr;gap:16px;padding:0}.client-home-card{min-height:140px;padding:20px;gap:22px}.client-home-card-label{font-size:23px}.client-home-card-icon{width:65px;height:65px;border-radius:18px}.client-home-card-icon svg{width:40px;height:40px}.client-home-card-arrow{margin-top:22px}}
 @media(prefers-reduced-motion:reduce){.client-home-card{transition:none}.client-home-card:hover{transform:none}}
 
 /* Curved wave artwork follows the reference without raster scaling. */
 .client-home-card:before{inset:0;width:100%;height:100%;border-radius:0;transform:none;background:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 366 186' preserveAspectRatio='none'%3E%3Cpath d='M105 186C184 159 259 115 366 90V186Z' fill='%23c0edf4'/%3E%3Cpath d='M239 186C277 145 315 123 366 108V186Z' fill='%23b0e7f0'/%3E%3C/svg%3E") center/100% 100% no-repeat}
 .client-home-card:after{display:none}
-@media(min-width:601px) and (max-width:860px){.client-home-card{gap:16px;padding:20px 16px}.client-home-card-icon{width:62px;height:64px;border-radius:17px}.client-home-card-icon svg{width:39px;height:39px}.client-home-card-label{font-size:21px;margin-top:21px}.client-home-card-arrow{margin-top:22px}.client-home-card-arrow svg{width:25px;height:25px}}
+@media(min-width:601px) and (max-width:860px){.client-home-card{gap:16px;padding:20px 16px}.client-home-card-icon{width:62px;height:64px;border-radius:17px}.client-home-card-icon svg{width:39px;height:39px}.client-home-card-label{font-size:clamp(18px,1.4vw,23px);margin-top:21px}.client-home-card-arrow{margin-top:22px}.client-home-card-arrow svg{width:25px;height:25px}}
 @media(max-width:374px){.client-home-header{gap:10px;padding:0 12px}.client-home-brand{padding-right:10px}.client-home-breadcrumb{font-size:12px;gap:6px}.client-home-brand strong{font-size:26px}.client-home-brand small{font-size:6px}.client-home-card{padding:18px;gap:14px}.client-home-card-icon{width:60px;height:60px}.client-home-card-label{font-size:20px;margin-top:20px}.client-home-card-arrow svg{width:24px;height:24px}.client-welcome{gap:14px;padding:20px 16px}.client-welcome h1{font-size:22px}}

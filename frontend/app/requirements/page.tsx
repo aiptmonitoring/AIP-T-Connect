@@ -1,4 +1,5 @@
 'use client';
+import { useClientPermissions } from '../../src/components/ClientPermissions';
 import { toPlainText } from '../../src/lib/plain-text';
 import DataTransfer from '../../src/components/DataTransfer';
 import TablePagination from '../../src/components/TablePagination';
@@ -46,7 +47,8 @@ function enrichRequirement(item: Requirement, serviceRows: Service[], procedureR
 
 export default function RequirementsPage() {
   const pathname = usePathname();
-  const readOnly = pathname.startsWith('/client-dashboard/');
+  const { canManage } = useClientPermissions('requirements');
+  const readOnly = pathname.startsWith('/client-dashboard/') && !canManage;
   const poaOnly = pathname === '/client-dashboard/poa';
   const [PAGE_SIZE, setPageSize] = useState(10);
   const [allRows, setAllRows] = useState<Requirement[]>([]),
@@ -443,7 +445,7 @@ export default function RequirementsPage() {
                 {modal !== 'view' && (
                   <footer className="country-panel-footer">
                     <button type="button" onClick={() => setModal(null)} data-action="cancel" title="Cancel"><ActionIcon name="cancel" /><span className="aipt-action-label">Cancel</span></button>
-                    <button disabled={saving} data-action="update" title="Save Requirement"><ActionIcon name="update" /><span className="aipt-action-label">
+                    <button disabled={saving} data-action={selected ? "update" : "add"} title="Save Requirement"><ActionIcon name="update" /><span className="aipt-action-label">
                       {saving ? 'Saving...' : 'Save Requirement'}
                     </span></button>
                   </footer>

@@ -114,7 +114,7 @@ export default function ClientShell({ children }: { children: React.ReactNode })
   };
   const closeDrawer = () => setDrawerOpen(false);
   const sidebarClass = `client-sidebar${isDesktop && collapsed ? ' is-collapsed' : ''}${!isDesktop && drawerOpen ? ' is-drawer-open' : ''}`;
-  const breadcrumb = pathname === '/client-dashboard' ? 'Dashboard' : pathname.includes('overview') ? 'Overview' : pathname.includes('fees') ? 'Fees' : pathname.includes('poa') ? 'POA' : pathname.includes('quotations') ? 'Quotations' : pathname.includes('notifications') ? 'Notifications' : pathname.includes('requirements') ? 'Requirements' : pathname.includes('customer-service') ? 'Customer Service' : pathname.includes('settings') ? 'Settings' : pathname.includes('statements') ? 'Statements' : pathname.includes('invoices') ? 'Invoices' : 'Projects';
+  const breadcrumb = pathname === '/client-dashboard' ? 'Dashboard' : pathname.includes('overview') ? 'Overview' : pathname.includes('schedule-of-fees') ? 'Schedule of Fees' : pathname.includes('fees') ? 'Fees' : pathname.includes('poa') ? 'POA' : pathname.includes('quotations') ? 'Quotations' : pathname.includes('notifications') ? 'Notifications' : pathname.includes('requirements') ? 'Requirements' : pathname.includes('customer-service') ? 'Customer Service' : pathname.includes('settings') ? 'Settings' : pathname.includes('statements') ? 'Statements' : pathname.includes('invoices') ? 'Invoices' : 'Projects';
 
   if (isHome) return <ClientIdentity.Provider value={{ name, email }}><div className="client-app-shell client-home-shell">
     <main className="client-main">

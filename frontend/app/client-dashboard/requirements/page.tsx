@@ -1,4 +1,7 @@
-﻿'use client';
+'use client';
+import ClientManagement from '../../../src/components/ClientManagement';
+import dynamic from 'next/dynamic';
+const RequirementsPage = dynamic(() => import('../../requirements/page'), { loading: () => <p>Loading management form...</p> });
 import { useMemo, useRef, useState } from 'react';
 import { toPlainText } from '../../../src/lib/plain-text';
 import ActionIcon from '../../../src/components/ActionIcon';
@@ -7,7 +10,7 @@ import '../../client-reference.css';
 
 type Requirement = { id: string; country_id: string; service_id: string | null; procedure_id: string | null; description: string; country?: ReferenceCountry; service?: { id: string; service: string } | null; procedure?: { id: string; description: string; service_id: string } };
 type Group = { id: string; service: string; procedure: string; description: string; countries: ReferenceCountry[] };
-export default function ClientRequirementsPage() {
+function ClientRequirementsPage() {
   const { data, loading, error, retry } = useClientReferenceData<{ data: Requirement[] }>('requirements?catalog=true');
   const [service, setService] = useState(''), [countries, setCountries] = useState<string[]>([]), [procedure, setProcedure] = useState('');
   const [filters, setFilters] = useState({ service: '', countries: [] as string[], procedure: '' }), [page, setPage] = useState(1), [exportError, setExportError] = useState('');
@@ -48,3 +51,5 @@ export default function ClientRequirementsPage() {
     </div>
   </section>;
 }
+
+export default function ManagedPage() { return <ClientManagement manager={<RequirementsPage />}><ClientRequirementsPage /></ClientManagement>; }

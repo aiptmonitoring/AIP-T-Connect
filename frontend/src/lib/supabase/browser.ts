@@ -47,6 +47,16 @@ export async function getActiveSession() {
 }
 
 export async function fetchSupabaseFunction(path: string, init: RequestInit & { timeoutMs?: number } = {}) {
+  // Client management forms use scoped lookups, never the administrator client directory.
+  if (typeof window !== 'undefined' && window.location.pathname.startsWith('/client-dashboard/') && (!init.method || init.method === 'GET')) {
+    const endpoint = path.split(/[/?]/)[0];
+    if (endpoint === 'quotations' && path.includes('lookup=true') && window.location.pathname === '/client-dashboard/fees') path += '&permission_page=fees';
+    if (['clients','countries','services','procedures'].includes(endpoint)) {
+      const query = new URLSearchParams(path.split('?')[1] || '');
+      query.set('lookup',endpoint);
+      path = 'client-permissions?' + query;
+    }
+  }
   const { timeoutMs = 15000, ...requestInit } = init;
   const controller = new AbortController();
   // Preserve the service timeout when a caller also cancels obsolete requests.

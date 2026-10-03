@@ -1,4 +1,5 @@
-﻿import { createClient } from "npm:@supabase/supabase-js@2";
+import { clientPermissionResponse, actionForRequest } from '../_shared/client-permissions.ts';
+import { createClient } from "npm:@supabase/supabase-js@2";
 import {
   DeleteObjectCommand,
   GetObjectCommand,
@@ -183,6 +184,7 @@ Deno.serve(async (request) => {
   const route = rootIndex === -1 ? [] : segments.slice(rootIndex + 1);
 
   try {
+    const denied = await clientPermissionResponse(db, user.id, 'projects', actionForRequest(request), cors); if (denied) return denied;
     if (request.method === "GET" && route.length === 0) {
       const projectId = new URL(request.url).searchParams.get("project_id");
       if (!projectId || !uuidPattern.test(projectId)) return json({ error: "A valid application id is required." }, 400);
@@ -238,7 +240,6 @@ Deno.serve(async (request) => {
       });
     }
 
-    if (profile.role !== "administrator" && request.method !== "GET") return json({ error: "Only administrators can change timeline entries." }, 403);
     if (request.method === "POST" && route.length === 0) {
       const form = await request.formData();
       const project_id = requiredUuid(form.get("project_id"), "application");
@@ -246,6 +247,7 @@ Deno.serve(async (request) => {
       const timeline_date = requiredDate(form.get("timeline_date"));
       const description = requiredDescription(form.get("description"));
       const files = extractFiles(form);
+      if (profile.role === 'client') { const own = await db.from('projects').select('id').eq('id',project_id).eq('client_id',profile.client_id).is('deleted_at',null).maybeSingle(); if (own.error) throw own.error; if (!own.data) return json({ error: 'Project not found.' },404); }
       await ensureProjectProcedure(db, project_id, procedure_id);
       const timelineId = crypto.randomUUID();
       const documents = await uploadDocuments(files, project_id, timelineId);
@@ -269,7 +271,8 @@ Deno.serve(async (request) => {
     if (!route[0] || !uuidPattern.test(route[0])) return json({ error: "A valid timeline id is required." }, 400);
     const timelineId = route[0];
     const before = await getTimeline(db, timelineId);
-    if (!before) return json({ error: "Timeline entry not found." }, 404);
+    if (!before) return json({ error: 'Timeline entry not found.' },404);
+    if (profile.role === 'client') { const own = await db.from('projects').select('id').eq('id',before.project_id).eq('client_id',profile.client_id).is('deleted_at',null).maybeSingle(); if (own.error) throw own.error; if (!own.data) return json({ error: 'Timeline entry not found.' },404); }
 
     if (request.method === "PUT" && route.length === 1) {
       const form = await request.formData();
@@ -279,6 +282,7 @@ Deno.serve(async (request) => {
       const timeline_date = requiredDate(form.get("timeline_date"));
       const description = requiredDescription(form.get("description"));
       const files = extractFiles(form);
+      if (profile.role === 'client') { const own = await db.from('projects').select('id').eq('id',project_id).eq('client_id',profile.client_id).is('deleted_at',null).maybeSingle(); if (own.error) throw own.error; if (!own.data) return json({ error: 'Project not found.' },404); }
       await ensureProjectProcedure(db, project_id, procedure_id);
       const documents = await uploadDocuments(files, project_id, timelineId);
       try {

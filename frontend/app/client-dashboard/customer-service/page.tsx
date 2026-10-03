@@ -1,4 +1,5 @@
 'use client';
+import { useClientPermissions } from '../../../src/components/ClientPermissions';
 import ActionIcon from '../../../src/components/ActionIcon';
 
 
@@ -16,10 +17,12 @@ const dateTime = (value: string) => new Intl.DateTimeFormat('en-US', { month: 's
 const requestCode = (ticket: Ticket) => `CS-${new Date(ticket.created_at).getFullYear()}${ticket.id.replace(/-/g, '').slice(0, 8).toUpperCase()}`;
 
 export default function ClientCustomerServicePage() {
-  const router = useRouter();
+  const router = useRouter(); const { can } = useClientPermissions('customer-service');
+  const [statusDraft,setStatusDraft] = useState<Ticket['status']>('Open');
   const [tickets, setTickets] = useState<Ticket[]>([]);
   const [selected, setSelected] = useState<Ticket | null>(null);
   const [messages, setMessages] = useState<Message[]>([]);
+  useEffect(() => { if (selected) setStatusDraft(selected.status); },[selected?.id,selected?.status]);
   const [statusActions, setStatusActions] = useState<StatusAction[]>([]);
   const [query, setQuery] = useState('');
   const [reply, setReply] = useState('');
@@ -48,12 +51,7 @@ export default function ClientCustomerServicePage() {
     const isForm = init.body instanceof FormData;
     const response = await fetchSupabaseFunction(`customer-service${path}`, { ...init, headers: { Authorization: `Bearer ${session.access_token}`, ...(isForm ? {} : { 'Content-Type': 'application/json' }), ...init.headers } });
     const body = await response.json().catch(() => ({}));
-    if (response.status === 403) {
-      await supabase.auth.signOut();
-      window.sessionStorage.setItem('aipt-auth-message', 'Client access is required. Please log in again using a client account.');
-      router.replace('/login');
-      throw Error('Client access is required. Please log in again using a client account.');
-    }
+
     if (!response.ok) throw Error(body.error || 'Unable to reach customer support.');
     return body;
   }, [router]);
@@ -150,7 +148,7 @@ export default function ClientCustomerServicePage() {
       placeholder={selected ? 'Type your message...' : 'Create a support request to begin...'}
       maxLength={5000}
     />
-    <button className={'support-send-button'} type={'button'} disabled={!selected || (!reply.trim() && !files.length) || saving} onClick={() => void send()}>
+    <button data-action="add" className={'support-send-button'} type={'button'} disabled={!selected || (!reply.trim() && !files.length) || saving} onClick={() => void send()}>
       ➤ <span>Send</span>
     </button></div>
   </footer>;
@@ -178,10 +176,24 @@ export default function ClientCustomerServicePage() {
     {supportTyping && <div className={'support-typing-indicator'} role={'status'} aria-live={'polite'}><span><i></i><i></i><i></i></span><b>AIP&amp;T Support is typing...</b></div>}
   </div>;
 
+  const updateStatus = async () => {
+    if (!selected || !can('update')) return;
+    setSaving(true);
+    try { await api(`/${selected.id}`,{ method:'PUT',body:JSON.stringify({ status:statusDraft }) }); await loadTickets(selected.id); }
+    catch(cause) { setError(cause instanceof Error ? cause.message : 'Unable to update ticket.'); }
+    finally { setSaving(false); }
+  };
+  const deleteTicket = async () => {
+    if (!selected || !can('delete') || window.prompt(`Delete "${selected.subject}"? Type DELETE to confirm.`) !== 'DELETE') return;
+    setSaving(true);
+    try { await api(`/${selected.id}`,{ method:'DELETE' }); await loadTickets(); }
+    catch(cause) { setError(cause instanceof Error ? cause.message : 'Unable to delete ticket.'); }
+    finally { setSaving(false); }
+  };
   const requestModal = modalOpen && <div className={'support-modal-backdrop'}>
     <section className={'support-request-modal'} role={'dialog'} aria-modal={true}>
       <header><div><h2>New Support Request</h2><p>Tell us what you need help with.</p></div><button type={'button'} aria-label={'Close'} onClick={() => setModalOpen(false)} data-action="cancel" title="Close"><ActionIcon name="cancel" /><span className="aipt-action-label">Close</span></button></header>
-      <form onSubmit={create}>
+      <form onSubmit={create} data-action="add">
         <label>Subject<input required minLength={3} maxLength={255} value={subject} onChange={(event) => setSubject(event.target.value)} /></label>
         <div>
           <label>Category<select value={category} onChange={(event) => setCategory(event.target.value)}><option>General Inquiry</option><option>Trademark</option><option>Patent</option><option>Design</option><option>Copyright</option><option>Billing</option><option>Technical Support</option></select></label>
@@ -202,7 +214,7 @@ export default function ClientCustomerServicePage() {
     {error && <p className={'client-error'} role={'alert'}>{error}</p>}
     <div className={'client-support-layout'}>
       <aside className={'client-conversation-list'}>
-        <header><div><h2>My Conversations</h2><p>{tickets.length} support {tickets.length === 1 ? 'request' : 'requests'}</p></div><button type={'button'} onClick={() => setModalOpen(true)} aria-label={'New support request'}>+</button></header>
+        <header><div><h2>My Conversations</h2><p>{tickets.length} support {tickets.length === 1 ? 'request' : 'requests'}</p></div><button type={'button'} onClick={() => setModalOpen(true)} data-action="add" aria-label={'New support request'}>+</button></header>
         <label><span aria-hidden={true}>Search</span><input value={query} onChange={(event) => setQuery(event.target.value)} placeholder={'Search conversations...'} /></label>
         <div>{visibleTickets.map((ticket) => <button type={'button'} className={`client-conversation-row${selected?.id === ticket.id ? ' selected' : ''}${ticket.unread_count ? ' has-unread' : ''}`} onClick={() => setSelected(ticket)} key={ticket.id}>
           <span>{ticket.subject.slice(0, 2).toUpperCase()}</span><b>{ticket.subject}<small>{requestCode(ticket)} · {dateTime(ticket.updated_at)}</small></b><em>{ticket.status}</em>{Boolean(ticket.unread_count) && <mark>{ticket.unread_count}</mark>}
@@ -210,6 +222,6 @@ export default function ClientCustomerServicePage() {
       </aside>
       <section className={'client-chat-card'}>{chatHeader}{chatHistory}{chatFooter}</section>
     </div>
-    {requestModal}
+    {selected && <div className="client-toolbar" aria-label="Ticket permissions">{can('edit') && <label>Status<select aria-label="Ticket status" value={statusDraft} onChange={event => setStatusDraft(event.target.value as Ticket['status'])}><option>Open</option><option>Pending</option><option>Resolved</option></select></label>}{can('update') && <button disabled={saving} onClick={() => void updateStatus()}>Update ticket status</button>}{can('delete') && <button disabled={saving} onClick={() => void deleteTicket()}>Delete ticket</button>}</div>}{requestModal}
   </section>;
 }

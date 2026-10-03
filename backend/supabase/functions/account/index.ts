@@ -1,3 +1,4 @@
+import { clientPermissionResponse, actionForRequest } from '../_shared/client-permissions.ts';
 import { createClient } from "npm:@supabase/supabase-js@2";
 import { HeadObjectCommand, GetObjectCommand, PutObjectCommand, S3Client } from "https://esm.sh/@aws-sdk/client-s3@3.637.0?target=deno&bundle";
 import { getSignedUrl } from "https://esm.sh/@aws-sdk/s3-request-presigner@3.637.0?target=deno&bundle";
@@ -28,6 +29,8 @@ Deno.serve(async (request) => {
   const { data: { user } } = token ? await db.auth.getUser(token) : { data: { user: null } };
   if (!user) return json({ error: "Authentication is required." }, 401);
   try {
+    const accountProfile = await db.from('profiles').select('role').eq('id',user.id).maybeSingle(); if (accountProfile.error) throw accountProfile.error;
+    if (accountProfile.data?.role === 'client') { const denied = await clientPermissionResponse(db, user.id, 'settings', request.method === 'GET' ? 'view' : 'update', cors); if (denied) return denied; }
     if (request.method === "POST") {
       const body = await request.json();
       if (body.action !== 'logo-upload' || !['image/png','image/jpeg','image/webp'].includes(body.content_type) || !Number.isSafeInteger(body.size) || body.size < 1 || body.size > 500 * 1024 * 1024) return json({ error: 'Choose a PNG, JPG, or WEBP logo up to 500 MB.' }, 400);

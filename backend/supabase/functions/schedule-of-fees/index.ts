@@ -1,3 +1,4 @@
+import { clientPermissionResponse, actionForRequest } from '../_shared/client-permissions.ts';
 import { CopyObjectCommand, DeleteObjectCommand, GetObjectCommand, HeadObjectCommand, ListObjectsV2Command, PutObjectCommand } from "https://esm.sh/@aws-sdk/client-s3@3.637.0?target=deno&bundle";
 import { getSignedUrl } from "https://esm.sh/@aws-sdk/s3-request-presigner@3.637.0?target=deno&bundle";
 import { bucket, getS3, extension, validateDocumentKey, verifyDocumentFile, documentStorageError } from "../_shared/document-storage.ts";
@@ -44,7 +45,7 @@ async function authorizeAdmin(request: Request) {
   if (authError || !user) return json({ error: "Authentication is required." }, 401);
   const { data: profile, error } = await db.from("profiles").select("role").eq("id", user.id).maybeSingle();
   if (error) throw error;
-  if (!["admin", "administrator"].includes(String(profile?.role ?? "").trim().toLowerCase())) return json({ error: "Only administrators can manage the Schedule of Fees." }, 403);
+  const denied = await clientPermissionResponse(db, user.id, 'fees', actionForRequest(request), cors); if (denied) return denied;
   return null;
 }
 

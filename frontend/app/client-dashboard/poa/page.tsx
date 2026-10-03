@@ -1,4 +1,7 @@
 'use client';
+import ClientManagement from '../../../src/components/ClientManagement';
+import dynamic from 'next/dynamic';
+const AdminPoaPage = dynamic(() => import('../../poa/page'), { loading: () => <p>Loading management form...</p> });
 
 import { FormEvent, useCallback, useEffect, useMemo, useState } from 'react';
 import { fetchSupabaseFunction } from '../../../src/lib/supabase/browser';
@@ -34,7 +37,7 @@ function triggerDownload(url: string) {
   link.remove();
 }
 
-export default function ClientPoaPage() {
+function ClientPoaPage() {
   const [documents, setDocuments] = useState<POADocument[]>([]);
   const [countries, setCountries] = useState<Country[]>([]);
   const [countryFilter, setCountryFilter] = useState('');
@@ -168,3 +171,5 @@ export default function ClientPoaPage() {
     </section>
   </main>;
 }
+
+export default function ManagedPage() { return <ClientManagement manager={<AdminPoaPage />}><ClientPoaPage /></ClientManagement>; }

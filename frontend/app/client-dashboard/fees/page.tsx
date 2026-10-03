@@ -1,11 +1,14 @@
 'use client';
+import ClientManagement from '../../../src/components/ClientManagement';
+import dynamic from 'next/dynamic';
+const ScheduleFeesPage = dynamic(() => import('../../schedule-of-fees/page'), { loading: () => <p>Loading management form...</p> });
 import { useEffect, useMemo, useState } from 'react';
 import Link from 'next/link';
 import { fetchSupabaseFunction, getSupabaseBrowserClient } from '../../../src/lib/supabase/browser';
 import TablePagination from '../../../src/components/TablePagination';
 type Fee = { id: string; country_id: string; category: string; procedure_name: string; official_fee: number | null; attorney_fee: number | null; total_fee: number | null; currency: string; available: boolean; issue?: string };
 type Lookup = { countries: { id: string; name: string }[]; fees: Fee[] };
-export default function ClientFeesPage() {
+function ClientFeesPage() {
   const [data, setData] = useState<Lookup>({ countries: [], fees: [] });
   const [loading, setLoading] = useState(true), [error, setError] = useState('');
   const [search, setSearch] = useState(''), [page, setPage] = useState(1), [pageSize, setPageSize] = useState(10);
@@ -31,3 +34,5 @@ export default function ClientFeesPage() {
     </tbody></table></div><TablePagination page={page} pageSize={pageSize} total={rows.length} onPageChange={setPage} onPageSizeChange={value => { setPageSize(value); setPage(1); }} loading={loading} /></section>
   </section>;
 }
+
+export default function ManagedPage() { return <ClientManagement manager={<ScheduleFeesPage />}><ClientFeesPage /></ClientManagement>; }

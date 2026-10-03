@@ -1,3 +1,4 @@
+import { clientPermissionResponse, actionForRequest } from '../_shared/client-permissions.ts';
 import { calculateClassPricing, classTypes, type ClassType, type ClassRate } from '../_shared/quotation-class-pricing.ts';
 import { toPlainText } from '../_shared/plain-text.ts';
 import { createClient } from 'npm:@supabase/supabase-js@2';
@@ -259,6 +260,7 @@ Deno.serve(async (request) => {
       return json({ ...withQuotationValidity(data), requirements: await loadQuotationRequirements(db, data.quotation_items ?? []) });
     }
     const { db, user, profile } = await context(request);
+    const denied = await clientPermissionResponse(db, user.id, request.method === 'GET' && new URL(request.url).searchParams.get('lookup') === 'true' && new URL(request.url).searchParams.get('permission_page') === 'fees' ? 'fees' : request.method === 'GET' && new URL(request.url).searchParams.get('status') === 'Approved' ? 'invoices' : 'quotations', new URL(request.url).pathname.endsWith('/cancel') ? 'update' : actionForRequest(request), cors); if (denied) return denied;
     const url = new URL(request.url);
     const parts = url.pathname.split('/').filter(Boolean);
     const last = parts.at(-1);
@@ -266,7 +268,7 @@ Deno.serve(async (request) => {
     const isCancellation = last === 'cancel';
     const resourcePart = isApproval || isCancellation ? parts.at(-2) : last;
     const id = resourcePart === 'quotations' ? null : resourcePart;
-    if (request.method === 'GET' && url.searchParams.get('lookup') === 'true') return json(await loadLookups(db, profile));
+    if (request.method === 'GET' && url.searchParams.get('lookup') === 'true') { const lookups = await loadLookups(db, profile); return json(url.searchParams.get('permission_page') === 'fees' ? { countries:lookups.countries, fees:lookups.fees } : lookups); }
     if (request.method === 'GET' && url.searchParams.get('next_reference') === 'true') {
       const category = categoryOf(url.searchParams.get('category'));
       const countryIds = (url.searchParams.get('country_ids') ?? '').split(',').filter(Boolean);
@@ -309,7 +311,7 @@ Deno.serve(async (request) => {
       const filtered = (data ?? []).filter((item: any) => (!country || item.quotation_items?.some((row: any) => row.country_id === country)) && (!search || JSON.stringify(item).toLowerCase().includes(search)));
       return json({ data: filtered.slice((page - 1) * pageSize, page * pageSize).map(withQuotationValidity), total: filtered.length, page, page_size: pageSize });
     }
-    if (profile.role !== 'administrator' && !(profile.role === 'client' && ['POST', 'PUT'].includes(request.method))) return json({ error: 'Only administrators can manage quotations.' }, 403);
+    if (profile.role !== 'administrator' && !(profile.role === 'client' && ['POST', 'PUT', 'DELETE'].includes(request.method))) return json({ error: 'Only administrators can manage quotations.' }, 403);
     if (request.method === 'POST' && isApproval) {
       if (profile.role !== 'administrator') return json({ error: 'Only administrators can approve quotations.' }, 403);
       if (!id) throw Error('Quotation id is required.');
@@ -391,10 +393,17 @@ Deno.serve(async (request) => {
       return json({ ...quotation, ...payload, items: itemRows }, request.method === 'POST' ? 201 : 200);
     }
     if (!id) throw Error('Quotation id is required.');
-    const { data: existing } = await db.from('quotations').select('id,status').eq('id', id).is('deleted_at', null).maybeSingle();
+    let deletionQuery = db.from('quotations').select('id,status').eq('id', id).is('deleted_at', null);
+    if (profile.role === 'client') deletionQuery = deletionQuery.eq('client_id', profile.client_id);
+    const { data: existing, error: deletionError } = await deletionQuery.maybeSingle();
+    if (deletionError) throw deletionError;
     if (!existing) return json({ error: 'Quotation not found.' }, 404);
+    if (profile.role === 'client' && existing.status !== 'Pending Approval') return json({ error: 'Only pending quotations can be deleted.' }, 409);
     if (request.method === 'DELETE') {
-      const result = await db.from('quotations').update({ deleted_at: new Date().toISOString() }).eq('id', id);
+      let deleteQuery = db.from('quotations').update({ deleted_at: new Date().toISOString() }).eq('id', id);
+      if (profile.role === 'client') deleteQuery = deleteQuery.eq('client_id',profile.client_id).eq('status','Pending Approval');
+      const result = await deleteQuery.select('id').maybeSingle();
+      if (!result.error && !result.data) return json({ error:'Quotation changed. Refresh and try again.' },409);
       if (result.error) throw result.error;
       return new Response(null, { status: 204, headers: cors });
     }

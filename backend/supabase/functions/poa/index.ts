@@ -1,6 +1,7 @@
+import { clientPermissionResponse, actionForRequest } from '../_shared/client-permissions.ts';
 import { DeleteObjectCommand, GetObjectCommand, HeadObjectCommand, ListObjectsV2Command, PutObjectCommand } from "https://esm.sh/@aws-sdk/client-s3@3.637.0?target=deno&bundle";
 import { getSignedUrl } from "https://esm.sh/@aws-sdk/s3-request-presigner@3.637.0?target=deno&bundle";
-import { bucket, getS3, extension, validateDocumentKey, verifyDocumentFile, documentStorageError } from "../_shared/document-storage.ts";
+import { bucket, getS3, validateDocumentKey, verifyDocumentFile, documentStorageError } from "../_shared/document-storage.ts";
 import { createClient } from "npm:@supabase/supabase-js@2";
 
 const cors = { "Access-Control-Allow-Origin": "*", "Access-Control-Allow-Headers": "authorization, apikey, content-type, x-client-info", "Access-Control-Allow-Methods": "GET, POST, PUT, DELETE, OPTIONS" };
@@ -149,7 +150,8 @@ Deno.serve(async request => {
   try {
     const auth = await authorize(request);
     if (auth.error) return auth.error;
-    const isAdmin = auth.role === "administrator";
+    const denied = await clientPermissionResponse(auth.db, auth.user!.id, 'poa', actionForRequest(request), cors); if (denied) return denied;
+    const isAdmin = auth.role === 'administrator' || new URL(request.url).searchParams.get('manage') === 'true' || request.method !== 'GET';
     const url = new URL(request.url);
     const requestedId = url.searchParams.get("id");
     const requestedKey = url.searchParams.get("key");
@@ -191,7 +193,7 @@ Deno.serve(async request => {
       return json({ data: allDocuments, countries: auth.allCountries });
     }
 
-    if (!isAdmin) return json({ error: "Only administrators can manage POA documents." }, 403);
+
 
     if (request.method === "POST") {
       const form = await request.formData();

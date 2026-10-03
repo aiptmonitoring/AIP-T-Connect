@@ -1,3 +1,4 @@
+import { clientPermissionResponse, actionForRequest } from '../_shared/client-permissions.ts';
 import { createClient } from "npm:@supabase/supabase-js@2";
 import { DeleteObjectCommand, GetObjectCommand, PutObjectCommand, S3Client } from "https://esm.sh/@aws-sdk/client-s3@3.637.0?target=deno&bundle";
 import { getSignedUrl } from "https://esm.sh/@aws-sdk/s3-request-presigner@3.637.0?target=deno&bundle";
@@ -45,7 +46,8 @@ Deno.serve(async (request) => {
   const parts = new URL(request.url).pathname.split("/").filter(Boolean), last = parts.at(-1), id = parts.length > 2 ? parts.at(-2) : null;
   const select = "id,notification_date,description,document_key,document_name,document_size,document_type,created_at,updated_at,countries:notification_countries(country:countries(id,name,abbreviation,flag_url))";
   try {
-    if (profile.role !== "administrator" && request.method !== "GET") return json({ error: "Only administrators can change notifications." }, 403);
+    const denied = await clientPermissionResponse(db, user.id, 'notifications', actionForRequest(request), cors); if (denied) return denied;
+    if (profile.role === 'client' && new URL(request.url).searchParams.get('manage') === 'true') clientNotificationIds = null;
     // Server-side S3 upload avoids the browser-to-S3 CORS preflight entirely.
     if (request.method === "POST" && last === "upload") { const form = await request.formData(), file = form.get("file"); if (!(file instanceof File)) return json({ error: "Select a document to upload." }, 400); const extension = file.name.split(".").pop()?.toLowerCase() ?? "", type = allowed.has(file.type) ? file.type : types[extension]; if (!type || file.size < 1 || file.size > 10485760) return json({ error: "Upload one PDF, DOC, DOCX, XLS, XLSX, JPG, PNG, or SVG file up to 10MB." }, 400); const key = `notifications/${crypto.randomUUID()}/${file.name.replace(/[^a-zA-Z0-9._-]/g, "_")}`; await s3.send(new PutObjectCommand({ Bucket: bucket, Key: key, Body: new Uint8Array(await file.arrayBuffer()), ContentType: type })); return json({ key, document_name: file.name, document_size: file.size, document_type: type }, 201); }
     if (request.method === "GET" && last === "download-url" && id) { let documentQuery = db.from("notifications").select("document_key").eq("id", id).is("deleted_at", null); if (clientNotificationIds) documentQuery = documentQuery.in("id", clientNotificationIds); const { data } = await documentQuery.maybeSingle(); if (!data?.document_key) return json({ error: "Document not found." }, 404); return json({ url: await getSignedUrl(s3, new GetObjectCommand({ Bucket: bucket, Key: data.document_key }), { expiresIn: 300 }) }); }

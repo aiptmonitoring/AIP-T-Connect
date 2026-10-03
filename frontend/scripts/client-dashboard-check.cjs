@@ -20,18 +20,19 @@ async function main() {
    else if(url.pathname.includes('/rest/v1/clients')) body={email:user.email};
    else if(url.pathname.includes('/functions/v1/customer-service')) body={tickets:[]};
    else if(url.pathname.includes('/functions/v1/quotations') && url.searchParams.has('lookup')) body={countries:[{id:'kw',name:'Kuwait'}],fees:[{id:'fee1',country_id:'kw',category:'Trademark',procedure_name:'Registration',currency:'USD',official_fee:100,attorney_fee:50,total_fee:150,available:true}],services:[],requirements:[]};
+   else if(url.pathname.endsWith('/functions/v1/poa')) body={countries:[{id:'kw',name:'Kuwait',abbreviation:'KW',flag_url:null}],data:[{id:'poa',key:'fixture.pdf',document_name:'Signed power of attorney (POA)',last_modified:'2026-01-01',countries:[{id:'kw',name:'Kuwait',abbreviation:'KW',flag_url:null}]}]};
    else if(url.pathname.includes('/functions/v1/requirements')) body={data:[{id:'poa',country_id:'kw',description:'Signed power of attorney (POA)',created_at:'2026-01-01',country:{id:'kw',name:'Kuwait'}},{id:'other',country_id:'kw',description:'Copy of passport',created_at:'2026-01-01'}],total:2};
    else if(/\/functions\/v1\/(statements|notifications)$/.test(url.pathname)) body=[];
    else body={data:[],total:0};
    await route.fulfill({status:200,contentType:'application/json',body:JSON.stringify(body)});
   });
   const page=await context.newPage(); const errors=[];page.on('pageerror',e=>errors.push(e.message));
-  await page.goto(origin+'/client-dashboard',{waitUntil:'networkidle'});
+  await page.goto(origin+'/client-dashboard',{waitUntil:'domcontentloaded',timeout:120000});
   await page.locator('.client-home-card').first().waitFor();
-  assert.equal(await page.locator('.client-home-card').count(),7);
+  assert.equal(await page.locator('.client-home-card').count(),8);
   assert.match(await page.locator('.client-welcome').innerText(),/Mohammad Alotaishan/);
   assert.equal(await page.locator('.client-sidebar').count(),0);
-  for(const width of [1578,1280,1024,768,390,320]){
+  for(const width of [1807,1578,1440,1280,1100,1024,768,390,320]){
    await page.setViewportSize({width,height:width<600?1100:783});
    await page.screenshot({path:path.join(out,'dashboard-'+width+'.png'),fullPage:true});
    const overflows=await page.locator('.client-home-card-label,.client-home-header').evaluateAll(els=>els.filter(el=>el.scrollWidth>el.clientWidth+1).map(el=>el.className));
@@ -76,7 +77,7 @@ async function main() {
   console.log('PASS: anonymous phone-sized QR destination and image-ready print action.');
 
   assert.deepEqual(errors,[]);
-  console.log('PASS: desktop/tablet/mobile layouts, account menu, seven destinations, client fees, POA filter; synthetic authenticated fixture.');
+  console.log('PASS: desktop/tablet/mobile layouts, account menu, eight destinations, client fees, POA documents; synthetic authenticated fixture.');
  } finally {await browser.close();}
 }
 main().catch(error=>{console.error(error);process.exitCode=1;});

@@ -1,0 +1,68 @@
+'use client';
+import { useEffect, useState } from 'react';
+import { fetchSupabaseFunction } from '../../src/lib/supabase/browser';
+import { useAdministratorAccess } from '../../src/lib/admin-documents';
+import { defaultClientPermissions, permissionPages, permissionActions, type ClientPermissions, type PermissionAction, type PermissionPage } from '../../src/lib/client-permissions';
+import './roles.css';
+type Client = { id: string; email?: string; full_name: string; company_name: string; approval_status: string; account_status: string; client: { company_name: string; email: string } | null };
+type Saved = { permissions: ClientPermissions; revision: number; updated_at: string | null };
+async function request<T>(path: string, options: RequestInit = {}): Promise<T> {
+  const response = await fetchSupabaseFunction('client-permissions' + path, options);
+  const body = await response.json();
+  if (!response.ok) throw Error(body.error || 'Unable to load permissions.');
+  return body;
+}
+export default function RolesPage() {
+  const { access, accessError } = useAdministratorAccess();
+  const [clients, setClients] = useState<Client[]>([]), [query, setQuery] = useState(''), [userId, setUserId] = useState('');
+  const [saved, setSaved] = useState<Saved | null>(null), [permissions, setPermissions] = useState<ClientPermissions>(defaultClientPermissions);
+  const [loading, setLoading] = useState(false), [saving, setSaving] = useState(false), [error, setError] = useState(''), [notice, setNotice] = useState('');
+  const dirty = saved && JSON.stringify(saved.permissions) !== JSON.stringify(permissions);
+  useEffect(() => {
+    if (access !== 'allowed') return;
+    let active = true;
+    void request<{ clients: Client[] }>('?clients=true').then(body => { if (active) setClients(body.clients); }).catch(cause => { if (active) setError(cause.message); });
+    return () => { active = false; };
+  }, [access]);
+  useEffect(() => {
+    setSaved(null); setNotice(''); setError('');
+    if (!userId) return;
+    const controller = new AbortController(); setLoading(true);
+    void request<Saved>('?user_id=' + userId, { signal:controller.signal }).then(body => { if (!controller.signal.aborted) { setSaved(body); setPermissions(body.permissions); } }).catch(cause => { if (!controller.signal.aborted) setError(cause.message); }).finally(() => { if (!controller.signal.aborted) setLoading(false); });
+    return () => controller.abort();
+  }, [userId]);
+  useEffect(() => {
+    if (!dirty) return;
+    const warn = (event: BeforeUnloadEvent) => { event.preventDefault(); };
+    window.addEventListener('beforeunload',warn); return () => window.removeEventListener('beforeunload',warn);
+  }, [dirty]);
+  const change = (page: PermissionPage, action: PermissionAction, checked: boolean) => setPermissions(current => {
+    const row = { ...current[page], [action]:checked };
+    if (checked && action !== 'view') row.view = true;
+    if (checked && action === 'update') row.edit = true;
+    if (!checked && action === 'edit') row.update = false;
+    if (!checked && action === 'view') permissionActions.forEach(key => { row[key] = false; });
+    return { ...current, [page]:row };
+  });
+  const save = async () => {
+    if (!saved || saving) return;
+    setSaving(true); setError(''); setNotice('');
+    try { const result = await request<Saved>('?user_id=' + userId,{ method:'PUT', headers:{ 'Content-Type':'application/json' }, body:JSON.stringify({ permissions, revision:saved.revision }) }); setSaved(result); setPermissions(result.permissions); setNotice('Permissions saved. Changes apply to subsequent client requests.'); }
+    catch (cause) { setError(cause instanceof Error ? cause.message : 'Unable to save permissions.'); }
+    finally { setSaving(false); }
+  };
+  if (access !== 'allowed') return <section className="roles-page"><p role="status">{accessError || (access === 'checking' ? 'Checking administrator access...' : 'Administrator access is required.')}</p></section>;
+  const selected = clients.find(client => client.id === userId);
+  return <section className="roles-page">
+    <header><div><p className="roles-kicker">ACCESS MANAGEMENT</p><h1>Roles &amp; Permissions</h1><p>Assign permissions to each client login for every client dashboard page.</p></div><span className="roles-badge">Administrator</span></header>
+    <div className="roles-card roles-client-picker"><label>Find a client<input type="search" value={query} onChange={event => setQuery(event.target.value)} placeholder="Name, company or email" /></label><label>Client login<select aria-label="Client login" disabled={saving} value={userId} onChange={event => { if (dirty && !window.confirm('Discard unsaved permission changes?')) return; setUserId(event.target.value); }}><option value="">Select a client login</option>{clients.filter(client => client.id === userId || [client.full_name,client.company_name,client.client?.company_name,client.email,client.client?.email].join(' ').toLowerCase().includes(query.toLowerCase())).map(client => <option key={client.id} value={client.id}>{client.full_name || 'Client'} — {client.client?.company_name || client.company_name} ({client.email || client.client?.email})</option>)}</select></label></div>
+    {error && <p className="roles-error" role="alert">{error}</p>}{notice && <p className="roles-notice" role="status">{notice}</p>}
+    {!userId ? <div className="roles-card roles-empty">Select a client to review and assign permissions.</div> : loading ? <div className="roles-card" aria-busy="true">Loading client permissions...</div> : saved && <div className="roles-card">
+      <div className="roles-matrix-heading"><div><h2>{selected?.full_name || 'Client permissions'}</h2><p>{selected?.client?.company_name} · {selected?.email || selected?.client?.email}</p><p>{selected?.approval_status} / {selected?.account_status}</p></div><span>{saved.revision ? 'Custom permissions' : 'Current default permissions'}</span></div>
+      <p className="roles-scope">Shared catalog permissions allow changes visible to other clients. Projects, quotations, statements, tickets, and account settings stay scoped to this client. Approval remains an administrator action.</p>
+      <div className="roles-table-wrap"><table><thead><tr><th>Client page</th><th>Scope</th>{permissionActions.map(action => <th key={action}>{action[0].toUpperCase()+action.slice(1)}</th>)}</tr></thead><tbody>{permissionPages.map(page => <tr key={page.key}><th scope="row">{page.label}</th><td>{page.scope}</td>{permissionActions.map(action => <td key={action}>{(page.actions as readonly string[]).includes(action) ? <input type="checkbox" aria-label={`${page.label}: ${action}`} checked={permissions[page.key][action]} disabled={saving} onChange={event => change(page.key,action,event.target.checked)} /> : <span title="This page has no such action" aria-label="Not applicable">—</span>}</td>)}</tr>)}</tbody></table></div>
+      <p className="roles-help">Edit opens an existing record; Update saves changes. Update also requires Edit. Read-only summary and approved invoice pages have View permission only.</p>
+      <footer><span>{dirty ? 'Unsaved changes' : 'All changes saved'}</span><button disabled={!dirty || saving} onClick={() => setPermissions(saved.permissions)}>Discard changes</button><button className="roles-save" disabled={!dirty || saving} onClick={() => void save()}>{saving ? 'Saving...' : 'Save permissions'}</button></footer>
+    </div>}
+  </section>;
+}

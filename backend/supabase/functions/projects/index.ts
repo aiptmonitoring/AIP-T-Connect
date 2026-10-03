@@ -1,4 +1,5 @@
-﻿import { createClient } from 'npm:@supabase/supabase-js@2';
+import { clientPermissionResponse, actionForRequest } from '../_shared/client-permissions.ts';
+import { createClient } from 'npm:@supabase/supabase-js@2';
 import { GetObjectCommand, PutObjectCommand, S3Client } from 'https://esm.sh/@aws-sdk/client-s3@3.637.0?target=deno&bundle';
 import { getSignedUrl } from 'https://esm.sh/@aws-sdk/s3-request-presigner@3.637.0?target=deno&bundle';
 
@@ -213,7 +214,8 @@ Deno.serve(async (request) => {
   const id = (isRestore || last === 'approve') ? segments.at(-2) ?? null : (last === 'projects' ? null : last);
   const fieldId = segments.at(-2) === 'fields' ? last : null;
   try {
-    if (profile.role !== 'administrator' && request.method !== 'GET') return json({ error: 'Only administrators can change projects.' }, 403);
+    const denied = await clientPermissionResponse(db, user.id, 'projects', actionForRequest(request), cors); if (denied) return denied;
+    if (profile.role === 'client' && (last === 'approve' || isRestore || fieldId || (last === 'fields' && request.method !== 'GET'))) return json({ error: 'Administrator access is required for this action.' }, 403);
     if (request.method === 'GET' && last === 'fields' && !fieldId) {
       const { data, error } = await db.from('project_field_definitions').select(fieldSelect).is('deleted_at', null).eq('active', true).order('display_order').order('created_at');
       if (error) throw error;
@@ -254,7 +256,7 @@ Deno.serve(async (request) => {
       if (!imagePath || !imagePath.startsWith('projects/images/')) return json({ error: 'A valid project image path is required.' }, 400);
       ensureImageStorageConfigured();
       const projectQuery = db.from('projects').select('id,client_id').eq('image_path', imagePath).is('deleted_at', null);
-      if (profile.role === 'client') projectQuery.eq('client_id', clientId).eq('approval_status', 'approved');
+      if (profile.role === 'client') projectQuery.eq('client_id', clientId);
       const { data: project, error: projectError } = await projectQuery.maybeSingle();
       if (projectError) throw projectError;
       if (!project) return json({ error: 'Project image not found.' }, 404);
@@ -262,7 +264,7 @@ Deno.serve(async (request) => {
     }
     if (request.method === 'GET' && id) {
       let detailQuery = db.from('projects').select(projectSelect).eq('id', id).is('deleted_at', null);
-      if (profile.role === 'client') detailQuery = detailQuery.eq('client_id', clientId).eq('approval_status', 'approved');
+      if (profile.role === 'client') detailQuery = detailQuery.eq('client_id', clientId);
       const { data, error } = await detailQuery.maybeSingle();
       if (error) throw error;
       return data ? json(data) : json({ error: 'Matter not found.' }, 404);
@@ -277,13 +279,13 @@ Deno.serve(async (request) => {
       const search = (url.searchParams.get('search') ?? '').trim();
       if (matterType && !matterTypes.has(matterType)) return json({ error: 'Choose a valid application type.' }, 400);
       if (approvalStatus && !['draft', 'pending', 'approved', 'rejected'].includes(approvalStatus)) return json({ error: 'Choose a valid approval status.' }, 400);
-      const restore = url.searchParams.get('restore') === 'true';
+      const restore = profile.role === 'administrator' && url.searchParams.get('restore') === 'true';
       const sortable = ['matter_date', 'aipt_ref_no', 'client_ref_no', 'project_name', 'filing_number', 'register_number', 'applicant', 'status', 'approval_status', 'deadline_date', 'renewal_date', 'filing_date', 'registered_date'];
       const sort = url.searchParams.get('sort') || 'matter_date';
       if (!sortable.includes(sort)) return json({ error: 'Invalid sort field.' }, 400);
       let query = db.from('projects').select(projectSelect, { count: 'exact' }).order(sort, { ascending: url.searchParams.get('direction') === 'asc', nullsFirst: false }).order('id');
       query = restore ? query.not('deleted_at', 'is', null) : query.is('deleted_at', null);
-      if (profile.role === 'client') query = query.eq('client_id', clientId).eq('approval_status', 'approved');
+      if (profile.role === 'client') { query = query.eq('client_id', clientId); if (url.searchParams.get('manage') !== 'true') query = query.eq('approval_status','approved'); }
       else if (requestedClientId) query = query.eq('client_id', requestedClientId);
       if (serviceId) query = query.eq('service_id', serviceId);
       if (profile.role === 'administrator' && approvalStatus) query = query.eq('approval_status', approvalStatus);
@@ -294,7 +296,8 @@ Deno.serve(async (request) => {
       return json({ data: data ?? [], total: count ?? 0, page, page_size: pageSize });
     }
     if (request.method === 'POST' && !id) {
-      const payload = validate(await request.json());
+      const input = await request.json();
+      const payload = validate(profile.role === 'client' ? { ...input, client_id: clientId } : input);
       await ensureReferences(db, payload);
       const { procedure_ids: _procedureIds, custom_fields: customFieldValues, ...projectPayload } = payload;
       const { data, error } = await db.from('projects').insert({ ...projectPayload, approval_status: 'pending' }).select(projectSelect).single();
@@ -312,7 +315,7 @@ Deno.serve(async (request) => {
       ? await beforeQuery.not('deleted_at', 'is', null).maybeSingle()
       : await beforeQuery.is('deleted_at', null).maybeSingle();
     if (beforeError) throw beforeError;
-    if (!before) return json({ error: 'Matter not found.' }, 404);
+    if (!before || (profile.role === 'client' && before.client_id !== clientId)) return json({ error: 'Matter not found.' }, 404);
     if (request.method === 'POST' && isRestore) {
       const { data, error } = await db.from('projects').update({ deleted_at: null }).eq('id', id).not('deleted_at', 'is', null).select(projectSelect).single();
       if (error) throw error;
@@ -330,10 +333,11 @@ Deno.serve(async (request) => {
       await audit(db, user.id, 'update', data, before);
       return json(data);
     }    if (request.method === 'PUT') {
-      const payload = validate(await request.json());
+      const input = await request.json();
+      const payload = validate(profile.role === 'client' ? { ...input, client_id: clientId } : input);
       await ensureReferences(db, payload);
       const { procedure_ids: _procedureIds, custom_fields: customFieldValues, ...projectPayload } = payload;
-      const { data, error } = await db.from('projects').update(projectPayload).eq('id', id).is('deleted_at', null).select(projectSelect).single();
+      const { data, error } = await db.from('projects').update(profile.role === 'client' ? { ...projectPayload, approval_status: 'pending', approved_at: null, approved_by: null } : projectPayload).eq('id', id).eq('client_id', before.client_id).is('deleted_at', null).select(projectSelect).single();
       if (error) throw error;
       await syncProjectProcedures(db, id, payload.procedure_ids);
       const { data: complete, error: completeError } = await db.from('projects').select(projectSelect).eq('id', id).single();
@@ -343,7 +347,7 @@ Deno.serve(async (request) => {
       return json(complete);
     }
     if (request.method === 'DELETE') {
-      const { error } = await db.from('projects').update({ deleted_at: new Date().toISOString() }).eq('id', id).is('deleted_at', null);
+      const { error } = await db.from('projects').update({ deleted_at: new Date().toISOString() }).eq('id', id).eq('client_id', before.client_id).is('deleted_at', null);
       if (error) throw error;
       await audit(db, user.id, 'delete', before, before);
       return new Response(null, { status: 204, headers: cors });

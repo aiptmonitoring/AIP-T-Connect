@@ -222,7 +222,7 @@ export default function AdminPoaPage() {
           <input id="admin-poa-search" type="search" value={search} onChange={event => { setSearch(event.target.value); setPage(1); }} placeholder="Search documents..." />
         </label>
         <span>{documents.length} document{documents.length === 1 ? '' : 's'}</span>
-        <button type="button" className="poa-download-all admin-poa-add" onClick={openCreate} disabled={loading || saving || Boolean(busyKey)}>
+        <button type="button" className="poa-download-all admin-poa-add" data-action="add" onClick={openCreate} disabled={loading || saving || Boolean(busyKey)}>
           <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 5v14M5 12h14"/></svg>
           Upload POA
         </button>
@@ -241,8 +241,8 @@ export default function AdminPoaPage() {
               <td>{formatDate(item.last_modified)}</td>
               <td className="admin-poa-actions"><div className="admin-poa-row-actions">
                 <button type="button" className="poa-download-button" onClick={() => void download(item)} disabled={saving || Boolean(busyKey)} aria-label={`Download ${item.document_name}`} title="Download"><ActionIcon name="download" /></button>
-                <button type="button" className="poa-download-button admin-poa-edit" onClick={() => openEdit(item)} disabled={saving || Boolean(busyKey)} aria-label={`Edit ${item.document_name}`} title="Edit"><ActionIcon name="edit" /><span>Edit</span></button>
-                <button type="button" className="poa-download-button admin-poa-delete" onClick={() => { if (operation.current) return; setDeleteTarget(item); setDeleteError(''); }} disabled={saving || Boolean(busyKey)} aria-label={`Delete ${item.document_name}`} title="Delete"><ActionIcon name="delete" /><span>Delete</span></button>
+                <button type="button" className="poa-download-button admin-poa-edit" data-action="edit" onClick={() => openEdit(item)} disabled={saving || Boolean(busyKey)} aria-label={`Edit ${item.document_name}`} title="Edit"><ActionIcon name="edit" /><span>Edit</span></button>
+                <button type="button" data-action="delete" className="poa-download-button admin-poa-delete" onClick={() => { if (operation.current) return; setDeleteTarget(item); setDeleteError(''); }} disabled={saving || Boolean(busyKey)} aria-label={`Delete ${item.document_name}`} title="Delete"><ActionIcon name="delete" /><span>Delete</span></button>
               </div>
               </td>
             </tr>)}
@@ -307,7 +307,7 @@ export default function AdminPoaPage() {
           }} />
           <p className="admin-poa-hint">PDF, DOC, or DOCX · Maximum 10 MB</p>
           {error && <p className="poa-error" role="alert">{error}</p>}
-          <footer><button type="button" className="admin-poa-cancel" onClick={() => setModal(false)} disabled={saving}>Cancel</button><button type="submit" className="poa-download-all" disabled={saving}>{saving ? 'Saving...' : selected ? 'Update document' : 'Upload document'}</button></footer>
+          <footer><button type="button" className="admin-poa-cancel" onClick={() => setModal(false)} disabled={saving}>Cancel</button><button type="submit" data-action={selected ? "update" : "add"} className="poa-download-all" disabled={saving}>{saving ? 'Saving...' : selected ? 'Update document' : 'Upload document'}</button></footer>
         </form>
       </section>
     </div>}

@@ -103,7 +103,7 @@ export default function NotificationsPage() {
         data: { session },
       } = await supabase.auth.getSession();
       if (!session) throw Error("Please sign in.");
-      const response = await fetchSupabaseFunction(`${endpoint}${path}`, {
+      const response = await fetchSupabaseFunction(`${endpoint}${path}${endpoint === "notifications" && typeof window !== "undefined" && window.location.pathname.startsWith("/client-dashboard/") && (!options.method || options.method === "GET") ? (path.includes("?") ? "&" : "?") + "manage=true" : ""}`, {
         ...options,
         headers: {
           Authorization: `Bearer ${session.access_token}`,
@@ -218,7 +218,7 @@ export default function NotificationsPage() {
         const { data: { session } } = await supabase!.auth.getSession();
         const form = new FormData();
         form.append("file", file);
-        const upload = await fetchSupabaseFunction("notifications/upload", {
+        const upload = await fetchSupabaseFunction("notifications/upload?permission_action=" + (selected ? "update" : "add"), {
           method: "POST",
           headers: { Authorization: `Bearer ${session?.access_token ?? ""}` },
           body: form,
@@ -639,7 +639,7 @@ export default function NotificationsPage() {
                   {error && <p className="country-form-error">{error}</p>}
                   <footer className="country-panel-footer">
                     <button type="button" onClick={close} data-action="cancel" title="Cancel"><ActionIcon name="cancel" /><span className="aipt-action-label">Cancel</span></button>
-                    <button disabled={saving} data-action="update" title="Save Notification"><ActionIcon name="update" /><span className="aipt-action-label">
+                    <button disabled={saving} data-action={selected ? "update" : "add"} title="Save Notification"><ActionIcon name="update" /><span className="aipt-action-label">
                       {saving
                         ? "Saving…"
                         : modal === "add"

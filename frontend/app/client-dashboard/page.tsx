@@ -4,12 +4,13 @@ import { useClientIdentity } from '../../src/components/ClientShell';
 import ClientDashboardIcon, { type DashboardIconName } from '../../src/components/ClientDashboardIcon';
 const destinations: { label: string; href: string; icon: DashboardIconName }[] = [
   { label: 'Quotations', href: '/client-dashboard/quotations', icon: 'quotations' },
-  { label: 'Fees', href: '/client-dashboard/fees', icon: 'fees' },
+  { label: 'Schedule of Fees', href: '/client-dashboard/schedule-of-fees', icon: 'fees' },
   { label: 'Requirements', href: '/client-dashboard/requirements', icon: 'requirements' },
   { label: 'Statements', href: '/client-dashboard/statements', icon: 'statements' },
   { label: 'POA', href: '/client-dashboard/poa', icon: 'poa' },
   { label: 'Project', href: '/client-dashboard/projects', icon: 'projects' },
   { label: 'Notification', href: '/client-dashboard/notifications', icon: 'notifications' },
+  { label: 'Customer Service', href: '/client-dashboard/customer-service', icon: 'support' },
 ];
 export default function ClientDashboardPage() {
   const { name } = useClientIdentity();

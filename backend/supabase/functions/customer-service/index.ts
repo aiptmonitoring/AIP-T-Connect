@@ -1,8 +1,9 @@
+import { clientPermissionResponse, actionForRequest } from '../_shared/client-permissions.ts';
 import { createClient } from 'npm:@supabase/supabase-js@2';
 import { DeleteObjectCommand, GetObjectCommand, PutObjectCommand, S3Client } from 'https://esm.sh/@aws-sdk/client-s3@3.637.0?target=deno&bundle';
 import { getSignedUrl } from 'https://esm.sh/@aws-sdk/s3-request-presigner@3.637.0?target=deno&bundle';
 
-const cors = { 'Access-Control-Allow-Origin': '*', 'Access-Control-Allow-Headers': 'authorization, apikey, content-type, x-client-info', 'Access-Control-Allow-Methods': 'GET, POST, PUT, OPTIONS' };
+const cors = { 'Access-Control-Allow-Origin': '*', 'Access-Control-Allow-Headers': 'authorization, apikey, content-type, x-client-info', 'Access-Control-Allow-Methods': 'GET, POST, PUT, DELETE, OPTIONS' };
 const json = (body: unknown, status = 200) => new Response(JSON.stringify(body), { status, headers: { ...cors, 'Content-Type': 'application/json' } });
 const ticketSelect = 'id,client_id,subject,category,priority,status,created_at,updated_at,client:clients(id,assigned_id,company_name,email,phone,address,country:countries(id,name,abbreviation))';
 const messageSelect = 'id,ticket_id,sender_id,sender_role,message,reply_to_id,created_at,reply_to:customer_service_messages!reply_to_id(id,message,sender_role),attachments:customer_service_attachments(id,file_name,file_size,file_type,is_image,created_at)';
@@ -47,6 +48,8 @@ Deno.serve(async (request) => {
   const route = root < 0 ? [] : parts.slice(root + 1);
   const ticketId = route[0] || null;
   try {
+    const permissionAction = request.method === 'GET' ? 'view' : new URL(request.url).pathname.endsWith('/typing') ? 'view' : actionForRequest(request);
+    const denied = await clientPermissionResponse(db, user.id, 'customer-service', permissionAction, cors); if (denied) return denied;
     let ticketQuery = db.from('customer_service_tickets').select(ticketSelect).is('deleted_at', null).order('updated_at', { ascending: false });
     if (!isAdmin) ticketQuery = ticketQuery.eq('client_id', profile.data!.client_id);
     const tickets = await ticketQuery;
@@ -148,8 +151,14 @@ Deno.serve(async (request) => {
       return json(created.data, 201);
     }
 
+    if (request.method === 'DELETE' && ticketId) {
+      if (!allowedTicket) return json({ error:'Conversation not found.' },404);
+      const result = await db.from('customer_service_tickets').update({ deleted_at:new Date().toISOString() }).eq('id',ticketId).eq('client_id',allowedTicket.client_id);
+      if (result.error) throw result.error;
+      return new Response(null,{ status:204,headers:cors });
+    }
     if (request.method === 'PUT' && ticketId) {
-      if (!isAdmin) return json({ error: 'Administrator access is required.' }, 403);
+
       const body = await request.json();
       const status = typeof body.status === 'string' ? body.status : '';
       const note = typeof body.note === 'string' ? body.note.trim().slice(0, 500) : '';

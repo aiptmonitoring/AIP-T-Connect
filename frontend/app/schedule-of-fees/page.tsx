@@ -20,7 +20,7 @@ function formatSize(value: number) {
 }
 
 export default function ScheduleOfFeesPage() {
-  const { access, accessError } = useAdministratorAccess('/client-dashboard');
+  const { access, accessError } = useAdministratorAccess('/client-dashboard', 'fees');
   const [documents, setDocuments] = useState<ScheduleDocument[]>([]);
   const [search, setSearch] = useState('');
   const [page, setPage] = useState(1);
@@ -148,7 +148,7 @@ export default function ScheduleOfFeesPage() {
           <input id="schedule-fees-search" type="search" value={search} onChange={event => { setSearch(event.target.value); setPage(1); }} placeholder="Search documents..." />
         </label>
         <span>{documents.length} document{documents.length === 1 ? '' : 's'}</span>
-        <button type="button" className="poa-download-all admin-poa-add" onClick={openCreate}>
+        <button type="button" className="poa-download-all admin-poa-add" data-action="add" onClick={openCreate}>
           <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 5v14M5 12h14"/></svg>Upload document
         </button>
       </div>
@@ -163,8 +163,8 @@ export default function ScheduleOfFeesPage() {
               <td>{item.document_name}</td><td>{formatDate(item.last_modified)}</td><td>{formatSize(item.size)}</td>
               <td className="admin-poa-actions">
                 <button type="button" className="poa-download-button" onClick={() => void download(item)} disabled={Boolean(busyKey)} aria-label={`Download ${item.document_name}`} title="Download"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3v12m-5-5 5 5 5-5M4 17v4h16v-4"/></svg></button>
-                <button type="button" className="poa-download-button admin-poa-edit" onClick={() => openEdit(item)} disabled={Boolean(busyKey)} aria-label={`Edit ${item.document_name}`} title="Edit"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="m4 16-.8 4.8L8 20l11-11-4-4zM13.5 6.5l4 4"/></svg></button>
-                <button type="button" className="poa-download-button admin-poa-delete" onClick={() => void remove(item)} disabled={Boolean(busyKey)} aria-label={`Delete ${item.document_name}`} title="Delete"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 7h16M9 7V4h6v3m3 0-.8 13H6.8L6 7m4 4v5m4-5v5"/></svg></button>
+                <button type="button" className="poa-download-button admin-poa-edit" data-action="edit" onClick={() => openEdit(item)} disabled={Boolean(busyKey)} aria-label={`Edit ${item.document_name}`} title="Edit"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="m4 16-.8 4.8L8 20l11-11-4-4zM13.5 6.5l4 4"/></svg></button>
+                <button type="button" data-action="delete" className="poa-download-button admin-poa-delete" onClick={() => void remove(item)} disabled={Boolean(busyKey)} aria-label={`Delete ${item.document_name}`} title="Delete"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 7h16M9 7V4h6v3m3 0-.8 13H6.8L6 7m4 4v5m4-5v5"/></svg></button>
               </td>
             </tr>)}
             {!loading && !error && !pageItems.length && <tr><td colSpan={4} className="poa-empty">{search ? 'No documents match your search.' : 'No Schedule of Fees documents have been uploaded.'}</td></tr>}
@@ -203,7 +203,7 @@ export default function ScheduleOfFeesPage() {
           }} />
           <p className="admin-poa-hint">PDF, Excel (.xls, .xlsx), or Word (.doc, .docx) · Maximum 25 MB</p>
           {error && <p className="poa-error" role="alert">{error}</p>}
-          <footer><button type="button" className="admin-poa-cancel" onClick={() => setModal(false)} disabled={saving}>Cancel</button><button type="submit" className="poa-download-all" disabled={saving}>{saving ? 'Saving...' : selected ? 'Save changes' : 'Upload document'}</button></footer>
+          <footer><button type="button" className="admin-poa-cancel" onClick={() => setModal(false)} disabled={saving}>Cancel</button><button type="submit" data-action={selected ? "update" : "add"} className="poa-download-all" disabled={saving}>{saving ? 'Saving...' : selected ? 'Save changes' : 'Upload document'}</button></footer>
         </form>
       </section>
     </div>}

@@ -1,4 +1,7 @@
 'use client';
+import ClientManagement from '../../../src/components/ClientManagement';
+import dynamic from 'next/dynamic';
+const ProjectsPage = dynamic(() => import('../../projects/page'), { loading: () => <p>Loading management form...</p> });
 import TablePagination from '../../../src/components/TablePagination';
 import ActionIcon from '../../../src/components/ActionIcon';
 
@@ -43,7 +46,7 @@ function ProjectImage({ path, name }: { path: string | null; name: string }) {
   return url ? <img className='client-project-image' src={url} alt={`${name} project`}/> : <span className='client-project-image-placeholder'>{name.slice(0, 2).toUpperCase()}</span>;
 }
 
-export default function ClientProjectsPage() {
+function ClientProjectsPage() {
   const [pageSize,setPageSize]=useState(10);
   const [projects, setProjects] = useState<Project[]>([]);
   const [search, setSearch] = useState('');
@@ -111,3 +114,5 @@ export default function ClientProjectsPage() {
     </section>
   </section>;
 }
+
+export default function ManagedPage() { return <ClientManagement manager={<ProjectsPage />}><ClientProjectsPage /></ClientManagement>; }

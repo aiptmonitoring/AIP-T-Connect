@@ -1,9 +1,11 @@
 'use client';
 import { useEffect, useState } from 'react';
-import { useRouter } from 'next/navigation';
+import { useRouter, usePathname } from 'next/navigation';
+import type { PermissionPage } from './client-permissions';
+import { useClientPermissions } from '../components/ClientPermissions';
 import { fetchSupabaseFunction, getSupabaseBrowserClient } from './supabase/browser';
-export function useAdministratorAccess(clientDestination = '/client-dashboard') {
- const router = useRouter();
+export function useAdministratorAccess(clientDestination = '/client-dashboard', clientPage?: PermissionPage) {
+ const router = useRouter(); const pathname = usePathname(); const { canManage, can } = useClientPermissions(clientPage); const clientAllowed = clientPage ? can('view') : canManage;
  const [access, setAccess] = useState<'checking' | 'allowed' | 'denied'>('checking');
  const [accessError, setAccessError] = useState('');
  const [administrator, setAdministrator] = useState({ name: 'Administrator', email: '', initials: 'AD' });
@@ -20,6 +22,7 @@ export function useAdministratorAccess(clientDestination = '/client-dashboard') 
    if (profileError) throw profileError;
    if (!active) return;
    const role = String(profile?.role ?? '').trim().toLowerCase();
+   if (role === 'client' && pathname.startsWith('/client-dashboard/') && clientAllowed) { setAccess('allowed'); return; }
    if (!['admin', 'administrator'].includes(role)) { setAccess('denied'); router.replace(role === 'client' ? clientDestination : '/login'); return; }
    const name = String(user.user_metadata?.full_name || user.user_metadata?.name || user.email?.split('@')[0] || 'Administrator');
    setAdministrator({ name, email: user.email ?? '', initials: name.split(/\s+/).map(part => part[0]).join('').slice(0, 2).toUpperCase() });
@@ -27,10 +30,11 @@ export function useAdministratorAccess(clientDestination = '/client-dashboard') 
   }
   void verify().catch(cause => { if (active) { setAccessError(cause instanceof Error ? cause.message : 'Unable to verify administrator access.'); setAccess('denied'); } });
   return () => { active = false; };
- }, [router, clientDestination]);
+ }, [router, clientDestination, pathname, clientAllowed]);
  return { access, accessError, administrator };
 }
 export async function requestDocument<T>(service: string, path = '', options: RequestInit = {}): Promise<T> {
+ if (typeof window !== 'undefined' && window.location.pathname.startsWith('/client-dashboard/') && service === 'poa') path += (path.includes('?') ? '&' : '?') + 'manage=true';
  const response = await fetchSupabaseFunction(service + path, { ...options, timeoutMs: 120000 });
  if (response.status === 204) return null as T;
  const body = await response.json().catch(() => null);

@@ -6,6 +6,7 @@ import { useEffect, useState, type ReactNode } from 'react';
 import { useRouter } from 'next/navigation';
 import AdminSidebar from './AdminSidebar';
 import ClientShell from './ClientShell';
+import ClientPermissionProvider, { ClientPageAccess } from './ClientPermissions';
 import { getSupabaseBrowserClient, isFeeSyncActive } from '../lib/supabase/browser';
 
 const adminRoutes = new Set([
@@ -24,6 +25,7 @@ const adminRoutes = new Set([
   '/notifications',
   '/customer-service',
   '/users',
+  '/roles',
   '/statements',
   '/poa',
   '/schedule-of-fees',
@@ -34,6 +36,7 @@ const clientRoutes = new Set([
   '/client-dashboard',
   '/client-dashboard/overview',
   '/client-dashboard/fees',
+  '/client-dashboard/schedule-of-fees',
   '/client-dashboard/poa',
   '/client-dashboard/quotations',
   '/client-dashboard/projects',
@@ -113,7 +116,7 @@ export default function AdminAppShell({ children }: { children: ReactNode }) {
 
   const idleNotice = idleWarning ? <div className="idle-timeout-notice" role="alert"><b>You appear to be away.</b><span>You will be logged out in {Math.floor(secondsRemaining / 60)}:{String(secondsRemaining % 60).padStart(2, '0')} for your security.</span><button type="button" onClick={() => window.dispatchEvent(new Event('pointerdown'))}>Stay signed in</button></div> : null;
 
-  if (clientRoutes.has(pathname)) return <><ClientShell>{children}</ClientShell>{welcomeToast}{idleNotice}</>;
+  if (clientRoutes.has(pathname)) return <><ClientPermissionProvider><ClientShell><ClientPageAccess>{children}</ClientPageAccess></ClientShell></ClientPermissionProvider>{welcomeToast}{idleNotice}</>;
 
   if (!adminRoutes.has(pathname)) return <>{children}{welcomeToast}</>;
 

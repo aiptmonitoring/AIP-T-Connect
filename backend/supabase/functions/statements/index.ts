@@ -1,3 +1,4 @@
+import { clientPermissionResponse, actionForRequest } from '../_shared/client-permissions.ts';
 import { createClient } from "npm:@supabase/supabase-js@2";
 import { DeleteObjectCommand, GetObjectCommand, PutObjectCommand, S3Client } from "https://esm.sh/@aws-sdk/client-s3@3.637.0?target=deno&bundle";
 import { getSignedUrl } from "https://esm.sh/@aws-sdk/s3-request-presigner@3.637.0?target=deno&bundle";
@@ -35,12 +36,13 @@ Deno.serve(async (request) => {
   const { db, user, profile, error } = await auth(request);
   if (error || !user || !profile) return error ?? json({ error: "Authentication is required." }, 401);
   try {
+    const denied = await clientPermissionResponse(db, user.id, 'statements', actionForRequest(request), cors); if (denied) return denied;
     const url = new URL(request.url);
     const id = url.pathname.split("/").filter(Boolean).at(-1);
     if (request.method === "GET" && (!id || id === "statements")) {
       let query = db.from("statements").select(select).is("deleted_at", null).order("statement_date", { ascending: false });
-      if (profile.role === "client") query = query.eq("client_id", profile.client_id ?? "");
-      if (profile.role === "client") query = query.eq("approval_status", "approved");
+      if (profile.role === "client") { query = query.eq("client_id", profile.client_id ?? ""); if (url.searchParams.get("manage") !== "true") query = query.eq("approval_status","approved"); }
+
       const { data, error: queryError } = await query;
       if (queryError) throw queryError;
       return json(data ?? []);
@@ -48,21 +50,21 @@ Deno.serve(async (request) => {
     if (request.method === "GET" && id && id !== "statements" && id !== "download-url") {
       const { data, error: detailError } = await db.from("statements").select(select).eq("id", id).is("deleted_at", null).maybeSingle();
       if (detailError) throw detailError;
-      if (!data || (profile.role === "client" && (data.client_id !== profile.client_id || data.approval_status !== "approved"))) return json({ error: "Statement not found." }, 404);
+      if (!data || (profile.role === "client" && (data.client_id !== profile.client_id))) return json({ error: "Statement not found." }, 404);
       return json(data);
     }
     if (request.method === "GET" && id === "download-url") {
       const statementId = url.pathname.split("/").filter(Boolean).at(-2);
       const { data: statement } = await db.from("statements").select("client_id,approval_status,document_key,document_name,document_type").eq("id", statementId ?? "").is("deleted_at", null).maybeSingle();
-      if (!statement || !statement.document_key || (profile.role === "client" && (statement.client_id !== profile.client_id || statement.approval_status !== "approved"))) return json({ error: "Document not found." }, 404);
+      if (!statement || !statement.document_key || (profile.role === "client" && (statement.client_id !== profile.client_id))) return json({ error: "Document not found." }, 404);
       if (!bucket || !region) throw Error("Statement document storage is not configured.");
       return json({ url: await getSignedUrl(s3, new GetObjectCommand({ Bucket: bucket, Key: statement.document_key, ResponseContentDisposition: `attachment; filename="${statement.document_name ?? "statement"}"`, ResponseContentType: statement.document_type ?? undefined }), { expiresIn: 300 }) });
     }
-    if (profile.role !== "administrator") return json({ error: "Only administrators can manage statements." }, 403);
+    if (profile.role === 'client' && request.method !== 'POST') { const own = await db.from('statements').select('client_id').eq('id', id).is('deleted_at',null).maybeSingle(); if (own.error) throw own.error; if (!own.data || own.data.client_id !== profile.client_id) return json({ error: 'Statement not found.' },404); }
     if (request.method === "POST") {
       const form = await request.formData();
       const statementDate = form.get("date");
-      const clientId = form.get("client_id");
+      const clientId = profile.role === 'client' ? profile.client_id : form.get("client_id");
       const description = typeof form.get("description") === "string" ? String(form.get("description")).trim() : "";
       if (typeof statementDate !== "string" || !/^\d{4}-\d{2}-\d{2}$/.test(statementDate)) throw Error("Choose a valid statement date.");
       if (typeof clientId !== "string" || !clientId) throw Error("Select a client.");
@@ -82,13 +84,14 @@ Deno.serve(async (request) => {
     }
     if (request.method === "PUT" && id && id !== "statements") {
       const body = await request.json();
+      if (profile.role === 'client' && (body.approval_status !== undefined || body.payment_status !== undefined || (body.client_id !== undefined && body.client_id !== profile.client_id))) return json({ error: 'Only administrators can change approval, payment, or client ownership.' },403);
       const updates: Record<string, unknown> = {};
       if (typeof body.approval_status === "string") { if (body.approval_status !== "approved" && body.approval_status !== "pending") throw Error("Invalid approval status."); updates.approval_status = body.approval_status; updates.approved_at = body.approval_status === "approved" ? new Date().toISOString() : null; updates.approved_by = body.approval_status === "approved" ? user.id : null; }
       if (typeof body.payment_status === "string") { if (body.payment_status !== "paid" && body.payment_status !== "unpaid") throw Error("Invalid payment status."); updates.payment_status = body.payment_status; updates.paid_at = body.payment_status === "paid" ? new Date().toISOString() : null; updates.paid_by = body.payment_status === "paid" ? user.id : null; }
       if (typeof body.date === "string") updates.statement_date = body.date;
       if (typeof body.client_id === "string") updates.client_id = body.client_id;
       if (typeof body.description === "string" && body.description.trim().length >= 3) updates.description = body.description.trim();
-      const { data, error: updateError } = await db.from("statements").update(updates).eq("id", id).is("deleted_at", null).select(select).single();
+      const { data, error: updateError } = await db.from("statements").update(profile.role === 'client' ? { ...updates, approval_status: 'pending', approved_at: null, approved_by: null } : updates).eq("id", id).is("deleted_at", null).select(select).single();
       if (updateError) throw updateError;
       return json(data);
     }
