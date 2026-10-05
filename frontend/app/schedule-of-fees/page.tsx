@@ -1,6 +1,7 @@
 'use client';
 
 import { FormEvent, useCallback, useEffect, useMemo, useState } from 'react';
+import { usePathname } from 'next/navigation';
 import { useAdministratorAccess, requestDocument, formatDocumentDate as formatDate, downloadDocumentUrl as downloadUrl } from '../../src/lib/admin-documents';
 import '../client-dashboard/poa/poa.css';
 import '../poa/admin-poa.css';
@@ -20,6 +21,7 @@ function formatSize(value: number) {
 }
 
 export default function ScheduleOfFeesPage() {
+  const clientScheduleView = usePathname() === '/client-dashboard/schedule-of-fees';
   const { access, accessError } = useAdministratorAccess('/client-dashboard', 'fees');
   const [documents, setDocuments] = useState<ScheduleDocument[]>([]);
   const [search, setSearch] = useState('');
@@ -139,8 +141,8 @@ export default function ScheduleOfFeesPage() {
       : <main className="poa-page admin-poa-page" aria-busy="true"><p>Verifying administrator access…</p></main>;
   }
 
-  return <main className="poa-page admin-poa-page schedule-fees-page">
-    <h1 className="admin-poa-accessible-title">Schedule of Fees</h1>
+  return <main className={`poa-page admin-poa-page schedule-fees-page${clientScheduleView ? ' client-schedule-fees-page' : ''}`}>
+    {clientScheduleView ? <h1 className="client-schedule-fees-heading"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M2 3h20l-8 9v8l-4 2V12z" /></svg>Schedule of Fees</h1> : <h1 className="admin-poa-accessible-title">Schedule of Fees</h1>}
     <section className="poa-results-panel admin-poa-results" aria-label="Manage Schedule of Fees documents">
       <div className="poa-results-toolbar schedule-fees-toolbar">
         <label className="poa-table-search" htmlFor="schedule-fees-search">
