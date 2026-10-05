@@ -7,6 +7,7 @@ import { toPlainText } from '../../../src/lib/plain-text';
 import ActionIcon from '../../../src/components/ActionIcon';
 import { ReferenceCountryBadge, ReferenceCountry, ReferencePagination, ReferenceSearchIcon, ReferenceTitle, useClientReferenceData } from '../../../src/components/ClientReference';
 import '../../client-reference.css';
+import './client-requirements.css';
 
 type Requirement = { id: string; country_id: string; service_id: string | null; procedure_id: string | null; description: string; country?: ReferenceCountry; service?: { id: string; service: string } | null; procedure?: { id: string; description: string; service_id: string } };
 type Group = { id: string; service: string; procedure: string; description: string; countries: ReferenceCountry[] };
