@@ -50,3 +50,40 @@
 .client-home-card:after{display:none}
 @media(min-width:601px) and (max-width:860px){.client-home-card{gap:16px;padding:20px 16px}.client-home-card-icon{width:62px;height:64px;border-radius:17px}.client-home-card-icon svg{width:39px;height:39px}.client-home-card-label{font-size:clamp(18px,1.4vw,23px);margin-top:21px}.client-home-card-arrow{margin-top:22px}.client-home-card-arrow svg{width:25px;height:25px}}
 @media(max-width:374px){.client-home-header{gap:10px;padding:0 12px}.client-home-brand{padding-right:10px}.client-home-breadcrumb{font-size:12px;gap:6px}.client-home-brand strong{font-size:26px}.client-home-brand small{font-size:6px}.client-home-card{padding:18px;gap:14px}.client-home-card-icon{width:60px;height:60px}.client-home-card-label{font-size:20px;margin-top:20px}.client-home-card-arrow svg{width:24px;height:24px}.client-welcome{gap:14px;padding:20px 16px}.client-welcome h1{font-size:22px}}
+
+.client-home-shell{--home-teal:#42aeba;--home-text:#fff;background:#fff;color:#fff;font-family:Arial,Helvetica,sans-serif}
+.client-home-shell .client-main{position:relative;isolation:isolate;min-height:100vh;background:#fff}
+.client-home-header{position:relative;z-index:1}
+.client-home-header{height:108px;gap:18px;padding:0 12px 0 9px;border:0;background:var(--home-teal);color:#fff}
+.client-home-brand{display:flex;flex-direction:row;align-items:center;justify-content:flex-start;gap:4px;width:135px;height:74px;padding:0 13px 0 0;border-right:3px solid #fff;color:#fff}
+.client-home-brand-mark{display:grid;place-items:center;width:74px;height:74px;border:2px solid #fff;border-radius:50%;font-size:35px;font-weight:700;letter-spacing:-2px}
+.client-home-brand strong{font:700 27px/1 Arial,Helvetica,sans-serif;letter-spacing:0}
+.client-home-welcome{display:flex;min-width:0;flex-direction:column;gap:4px;margin:0;color:#fff;font-size:26px;line-height:1.05}
+.client-home-welcome span{font-size:24px;font-weight:600}
+.client-home-welcome strong{overflow:hidden;font-size:36px;font-weight:700;text-overflow:ellipsis;text-transform:uppercase;white-space:nowrap}
+.client-home-account{margin-left:auto}
+.client-home-account-menu{position:relative;color:#fff}
+.client-home-account-menu .account-menu-trigger{padding:0;border:0;background:transparent}
+.client-home-account-menu .account-menu-avatar{width:74px;height:74px;flex-basis:74px;border:0;background:#fff;color:var(--home-teal);font-size:36px;font-weight:700}
+.client-home-account-menu .account-menu-summary,.client-home-account-menu .account-menu-chevron{display:none}
+.client-home-account-menu .account-menu-popover{color:#263b3e}
+.client-home{max-width:1420px;padding:24px clamp(24px,7.4vw,88px) 48px}
+.client-home-grid{grid-template-columns:repeat(4,minmax(0,1fr));gap:34px 36px;padding:0}
+.client-home-card-wrap{gap:0;overflow:hidden;border:1px solid #dcebed;border-radius:8px;background:#fff;box-shadow:0 0 0 2px #f4fbfc}
+.client-home-tutorial-link{height:23px;flex:none;justify-content:flex-start;padding:0 5px;background:var(--home-teal);color:#fff;font-size:10px;font-weight:700}
+.client-home-tutorial-link span+span{display:none}
+.client-home-tutorial-link.is-unavailable{color:#fff}
+.client-home-card{display:grid;min-height:184px;place-items:center;padding:8px;background:var(--home-teal);color:#fff;transition:filter .18s ease}
+.client-home-card:before{display:none}
+.client-home-card-label{display:grid;width:min(72%,156px);aspect-ratio:1;place-items:center;margin:0;border:5px solid #fff;border-radius:50%;color:#fff;font-size:17px;font-weight:700;line-height:1.12;text-align:center;white-space:pre-line}
+.client-home-card-sr-only{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0,0,0,0);white-space:nowrap}
+.client-home-chat{display:flex;height:27px;align-items:center;gap:5px;padding:0 8px;background:var(--home-teal);border-top:2px solid #fff;color:#fff;font-size:10px;font-weight:700;text-decoration:none}
+.client-home-chat-bubble{position:relative;width:22px;height:14px;border-radius:9px;background:#fff}
+.client-home-chat-bubble:after{position:absolute;right:1px;bottom:-3px;width:0;height:0;border-top:5px solid #fff;border-left:5px solid transparent;content:''}
+.client-home-chat svg{width:22px;height:22px;margin-left:auto;fill:#fff;stroke:#fff;stroke-width:2.5}
+.client-home-card:hover{filter:brightness(.96);transform:none;box-shadow:none}
+.client-home-shell a:focus-visible,.client-home-shell button:focus-visible{outline:3px solid #185c68;outline-offset:3px}
+@media(max-width:1050px){.client-home-grid{grid-template-columns:repeat(2,minmax(0,1fr));gap:24px}.client-home-card{min-height:184px}}
+@media(max-width:600px){.client-home-header{height:auto;min-height:86px;gap:10px;padding:8px}.client-home-brand{width:82px;height:56px;gap:2px;padding-right:8px;border-right-width:2px}.client-home-brand-mark{width:52px;height:52px;font-size:25px;letter-spacing:-1px}.client-home-brand strong{font-size:18px}.client-home-welcome{gap:3px;font-size:16px}.client-home-welcome span{font-size:15px}.client-home-welcome strong{font-size:20px;white-space:normal}.client-home-account-menu .account-menu-avatar{width:48px;height:48px;flex-basis:48px;font-size:23px}.client-home{padding:18px 16px 36px}.client-home-grid{grid-template-columns:repeat(2,minmax(0,1fr));gap:14px}.client-home-card{min-height:150px}.client-home-card-label{width:min(78%,124px);border-width:4px;font-size:14px}.client-home-chat{height:26px}}
+@media(max-width:370px){.client-home-grid{grid-template-columns:1fr;gap:14px}.client-home-card{min-height:175px}}
+@media(prefers-reduced-motion:reduce){.client-home-card{transition:none}}

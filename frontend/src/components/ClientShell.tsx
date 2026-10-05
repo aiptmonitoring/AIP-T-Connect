@@ -119,9 +119,9 @@ export default function ClientShell({ children }: { children: React.ReactNode })
   if (isHome) return <ClientIdentity.Provider value={{ name, email }}><div className="client-app-shell client-home-shell">
     <main className="client-main">
       <header className="client-home-header">
-        <Link className="client-home-brand" href="/client-dashboard" aria-label="AIP&T home"><strong>AIP&amp;T</strong><small>INTELLECTUAL PROPERTY</small></Link>
-        <nav className="client-home-breadcrumb" aria-label="Breadcrumb"><Link href="/client-dashboard"><ClientDashboardIcon name="home" /><span>Home</span></Link><span aria-hidden="true">/</span><b aria-current="page">Dashboard</b></nav>
-        <div className="client-home-account"><Link href="/client-dashboard/settings" className="client-home-profile" aria-label="Account settings"><ClientDashboardIcon name="user" /></Link><AccountMenu name={name} email={email} initials={initials} updateHref="/client-dashboard/settings" className="client-home-account-menu" navigationLinks={[{ href: '/client-dashboard/overview', label: 'Portfolio overview' }, { href: '/client-dashboard/invoices', label: 'Invoices' }, { href: '/client-dashboard/customer-service', label: unreadMessages ? `Help & Support (${unreadMessages} unread)` : 'Help & Support' }]} /></div>
+        <Link className="client-home-brand" href="/client-dashboard" aria-label="AIP&T home"><span className="client-home-brand-mark">AIP</span><strong>&amp;T</strong></Link>
+        <h1 className="client-home-welcome"><span>Welcome,</span><strong>{name}</strong></h1>
+        <div className="client-home-account"><AccountMenu name={name} email={email} initials={initials} updateHref="/client-dashboard/settings" className="client-home-account-menu" navigationLinks={[{ href: '/client-dashboard/overview', label: 'Portfolio overview' }, { href: '/client-dashboard/invoices', label: 'Invoices' }, { href: '/client-dashboard/customer-service', label: unreadMessages ? `Help & Support (${unreadMessages} unread)` : 'Help & Support' }]} /></div>
       </header>
       {accessState === 'checking' && <section className="client-access-state">Checking client access...</section>}
       {accessState === 'denied' && <section className="client-access-state client-error">Client access is required.</section>}
