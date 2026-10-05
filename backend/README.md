@@ -74,6 +74,49 @@ Add this statement to the existing IAM policy (which already grants
 `s3:ListBucket` on the bucket):
 
 ```json
+
+## Client dashboard video tutorials
+
+The admin-only `/video-tutorials` page assigns one video to each client
+dashboard card. Videos are stored privately under
+`s3://aiptuploaddocument/aiptvideotutorial/` in `eu-north-1`; clients receive
+one-hour signed playback URLs only for assigned videos. The function uses the
+`AWS_ACCESS_KEY_ID` and `AWS_SECRET_ACCESS_KEY` Edge Function secrets and the
+`VideoTutorialAccess` statement in `aws/admin-documents-policy.json`. Use a
+dedicated IAM identity with that scoped policy, then apply the migration and
+deploy the function to the same project configured by the frontend. Link using
+the project ref at the start of `NEXT_PUBLIC_SUPABASE_URL`:
+
+If `backend/.env` contains the same AWS IAM identity used by the Edge Function,
+`node scripts/audit-document-iam.mjs --apply-video-tutorials` applies and reads
+back only the video tutorial grant. The identity needs `iam:PutUserPolicy` and
+`iam:GetUserPolicy`; otherwise, an AWS administrator must attach the statement.
+
+```text
+supabase link --project-ref <frontend-project-ref>
+supabase db push
+supabase functions deploy video-tutorials
+```
+
+Configure the S3 bucket CORS in the AWS console. Replace the example origin
+with the deployed frontend origin and retain localhost only if local uploads
+are needed:
+
+```json
+[
+	{
+		"AllowedHeaders": ["content-type"],
+		"AllowedMethods": ["PUT", "GET", "HEAD"],
+		"AllowedOrigins": ["https://your-frontend.example.com", "http://localhost:3000"],
+		"ExposeHeaders": ["ETag"],
+		"MaxAgeSeconds": 3000
+	}
+]
+```
+
+The bucket must remain private with Block Public Access enabled. Set the AWS
+credentials as Supabase Edge Function secrets; never put them in frontend
+environment variables or source files.
 {
   "Sid": "ScheduleOfFeesAccess",
   "Effect": "Allow",

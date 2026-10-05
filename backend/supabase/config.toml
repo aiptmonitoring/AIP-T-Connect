@@ -43,6 +43,9 @@ verify_jwt = false
 [functions.schedule-of-fees]
 verify_jwt = false
 
+[functions.video-tutorials]
+verify_jwt = false
+
 [functions.client-permissions]
 verify_jwt = false
 

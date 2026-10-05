@@ -53,6 +53,7 @@ const navigation: NavigationItem[] = [
   { href: '/statements', label: 'Statements', icon: 'notifications' },
   { href: '/poa', label: 'POA', icon: 'documents' },
   { href: '/schedule-of-fees', label: 'Schedule of Fees', icon: 'documents' },
+  { href: '/video-tutorials', label: 'Video Tutorials', icon: 'documents' },
   { href: '/users', label: 'Users', icon: 'clients' },
   { href: '/roles', label: 'Roles & Permissions', icon: 'clients' },
 ];

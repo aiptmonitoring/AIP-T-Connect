@@ -29,6 +29,7 @@ const adminRoutes = new Set([
   '/statements',
   '/poa',
   '/schedule-of-fees',
+  '/video-tutorials',
   '/admin-account',
 ]);
 

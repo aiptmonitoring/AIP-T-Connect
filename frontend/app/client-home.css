@@ -29,7 +29,11 @@
 .client-welcome h1{margin:0;min-width:0;color:var(--home-text);font-size:36px;line-height:1.2;letter-spacing:-.5px;overflow-wrap:anywhere}
 .client-welcome h1 span{display:block;margin-bottom:2px;font-size:30px;font-weight:400;letter-spacing:0}.client-welcome h1 strong{font-weight:750}
 .client-home-grid{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:30px 20px;padding:0 2px}
+.client-home-card-wrap{display:flex;min-width:0;flex-direction:column;gap:7px}
 .client-home-card{display:flex;align-items:flex-start;gap:22px;min-height:176px;padding:18px 16px;border:1px solid #8ee4f5;text-decoration:none;color:var(--home-text);transition:box-shadow .18s,transform .18s}
+.client-home-tutorial-link{display:flex;align-items:center;justify-content:space-between;gap:8px;min-width:0;padding:2px 4px;color:#087b80;font-size:12px;font-weight:700;text-decoration:none}
+.client-home-tutorial-link span+span{overflow:hidden;color:#516a6d;font-weight:400;text-align:right;text-overflow:ellipsis;white-space:nowrap}
+.client-home-tutorial-link:hover span:first-child{text-decoration:underline}
 .client-home-card-icon{display:grid;place-items:center;flex:none;width:75px;height:72px;border-radius:20px;background:linear-gradient(140deg,#12a8c0,#19aec5);color:#fff}
 .client-home-card-icon svg{width:45px;height:45px}
 .client-home-card-label{align-self:flex-start;margin-top:21px;min-width:0;font-size:25px;font-weight:700;letter-spacing:-.5px;line-height:1.15}

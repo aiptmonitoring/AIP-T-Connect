@@ -12,12 +12,21 @@ async function iam(action,args={},service='iam',region='us-east-1',version='2010
  const r=await fetch('https://'+host+'/',{method:'POST',headers,body});const text=await r.text();if(!r.ok)throw Error(action+' HTTP '+r.status+' '+(text.match(/<Code>([^<]+)/)?.[1]||'failed'));return text;
 }
 const policy=JSON.parse(readFileSync(new URL('../aws/admin-documents-policy.json',import.meta.url),'utf8'));
+const videoPolicy={Version:'2012-10-17',Statement:[{Sid:'VideoTutorialAccess',Effect:'Allow',Action:['s3:PutObject','s3:GetObject','s3:DeleteObject'],Resource:'arn:aws:s3:::aiptuploaddocument/aiptvideotutorial/*'}]};
 if(policy.Version !== '2012-10-17' || !Array.isArray(policy.Statement))throw Error('Invalid document IAM policy.');
 try {
  const identity=await iam('GetCallerIdentity',{},'sts',env.AWS_REGION,'2011-06-15');
  const arn=identity.match(/<Arn>([^<]+)/)?.[1];
  if(!arn?.includes(':user/'))throw Error('The configured AWS identity is not an IAM user; an AWS administrator must apply the prepared policy to the role.');
  const name=arn.split('/').pop();console.log('Configured AWS user identity verified through STS.');
- if(process.argv.includes('--apply')){await iam('PutUserPolicy',{UserName:name,PolicyName:'AIPTAdminDocumentAccess',PolicyDocument:JSON.stringify(policy)});console.log('Applied AIPTAdminDocumentAccess, limited to the configured bucket document folders.');}
+ if(process.argv.includes('--apply-video-tutorials')){
+  const policyName='AIPTVideoTutorialAccess';
+  await iam('PutUserPolicy',{UserName:name,PolicyName:policyName,PolicyDocument:JSON.stringify(videoPolicy)});
+  const response=await iam('GetUserPolicy',{UserName:name,PolicyName:policyName});
+  const encoded=response.match(/<PolicyDocument>([^<]+)<\/PolicyDocument>/)?.[1];
+  const applied=encoded?JSON.parse(decodeURIComponent(encoded.replace(/\+/g,' '))):null;
+  if(JSON.stringify(applied)!==JSON.stringify(videoPolicy))throw Error('Applied video tutorial policy did not match the requested grant.');
+  console.log('Applied and verified AIPTVideoTutorialAccess on the configured IAM user.');
+ } else if(process.argv.includes('--apply')){await iam('PutUserPolicy',{UserName:name,PolicyName:'AIPTAdminDocumentAccess',PolicyDocument:JSON.stringify(policy)});console.log('Applied AIPTAdminDocumentAccess, limited to the configured bucket document folders.');}
  else {await iam('ListUserPolicies',{UserName:name});console.log('Inline IAM policies readable.');}
 } catch(e){console.error(e.message);process.exitCode=1;}
