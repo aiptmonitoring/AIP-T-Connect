@@ -737,7 +737,7 @@ export default function QuotationsPage() {
         </div>
         }
         {clientView && <section className="client-fee-selection" aria-labelledby="client-fee-title">
-          <h2 id="client-fee-title"><svg viewBox="0 0 24 24" aria-hidden="true" fill="currentColor"><path d="M2 3h20l-8 9v8l-4 2V12z" /></svg>Fee Selection</h2>
+          <h2 id="client-fee-title"><svg viewBox="0 0 24 24" aria-hidden="true" fill="currentColor"><path d="M2 3h20l-8 9v8l-4 2V12z" /></svg>Fee Selections</h2>
           <form onSubmit={event => { event.preventDefault(); setSelected(null); setCart([]); setInvoiceDate(today()); setDiscount(0); setError(""); if (generateFees()) setModal("form"); }}>
             <label>{category === "Trademark" ? "Trademark *" : "Services / Project *"}<select aria-label={category === "Trademark" ? "Trademark" : "Services / Project"} value={category} disabled={lookupLoading} onChange={event => { setCategory(event.target.value as Category); setProcedureNames([]); }}><option value="" disabled>Select {category === "Trademark" ? "Trademark" : "Services / Project"}</option>{serviceOptions.map(service => <option key={service.id} value={service.name}>{service.name}</option>)}</select></label>
             <label>Country *<select aria-label="Country" value={countryIds[0] ?? ""} disabled={lookupLoading} onChange={event => setCountryIds(event.target.value ? [event.target.value] : [])}><option value="">Select Country</option>{lookup.countries.map(country => <option key={country.id} value={country.id}>{country.name}</option>)}</select></label>

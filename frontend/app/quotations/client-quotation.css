@@ -5,7 +5,7 @@
   --primary-color-soft: #e4faff;
   --primary-color-border: #a6eafa;
   --primary-color-focus: #c5f4fc;
-  background: linear-gradient(120deg, #effcff, #f8feff) !important;
+  background: #fff !important;
   color: #009fc4;
   font-family: Arial, Helvetica, sans-serif;
   padding: 18px 20px;
@@ -17,9 +17,9 @@
 .client-quotation-page .client-fee-selection,
 .client-quotation-page .country-table-card {
   margin: 0 0 14px !important;
-  border: 1px solid #a6eafa !important;
-  border-radius: 9px !important;
-  background: #f3fcfe !important;
+  border: 0 !important;
+  border-radius: 0 !important;
+  background: transparent !important;
   box-shadow: none !important;
   overflow: visible;
 }
@@ -177,6 +177,14 @@
     Helvetica,
     sans-serif;
 }
+.client-quotation-page .quotation-toolbar select[aria-label="Sort quotations"] {
+  flex: 0 0 100px;
+  min-width: 0;
+}
+.client-quotation-page .quotation-toolbar select[aria-label="Filter quotation country"] {
+  flex: 0 0 136px;
+  min-width: 0;
+}
 .client-quotation-page .quotation-toolbar > span {
   font-size: 11px;
   white-space: nowrap;
@@ -187,7 +195,7 @@
 }
 .client-quotation-page .quotation-status-tabs button {
   height: 34px;
-  padding: 0 11px;
+  padding: 0 8px;
   border: 1px solid #94e0f6;
   background: #f5fdff;
   color: #00a6c9;
@@ -235,8 +243,8 @@
 .client-quotation-page .country-table-wrap th {
   height: 37px;
   padding: 10px 13px !important;
-  background: #e2f9fe !important;
-  color: #00a6c9 !important;
+  background: #25a9c2 !important;
+  color: #fff !important;
   font-size: 9px !important;
   letter-spacing: 0;
   text-align: left;
@@ -244,8 +252,8 @@
   border-right: 1px solid #bdeefa !important;
 }
 .client-quotation-page .country-table-wrap td {
-  padding: 7px 13px !important;
-  height: 44px;
+  padding: 6px 11px !important;
+  height: 38px;
   color: #00a6c9 !important;
   background: transparent !important;
   font-size: 12px;
@@ -278,6 +286,9 @@
 }
 .client-quotation-page .quotation-actions button:disabled {
   opacity: 0.45;
+}
+.client-quotation-page .quotation-actions .aipt-action-label {
+  display: none;
 }
 .client-quotation-page .quotation-status {
   display: inline-flex;
@@ -368,16 +379,16 @@
   width: 12px;
   height: 12px;
   border-radius: 50%;
-  background: #2adaf5;
+  background: #f5a900;
 }
 .client-status-legend .approved i {
   background: #2eb568;
 }
 .client-status-legend .rejected i {
-  background: #ff477e;
+  background: #df3e43;
 }
 .client-status-legend .cancelled i {
-  background: #5a9fb9;
+  background: #809ca5;
 }
 .client-quotation-backdrop {
   background: #244b61a6;
@@ -645,8 +656,16 @@
   padding: 0 0 8px !important;
 }
 .client-quotation-page .quotation-status.pending-approval {
-  background: #bff3ff;
-  color: #00a6c9;
+  background: #fff4dc;
+  color: #b87900;
+}
+.client-quotation-page .quotation-status.rejected {
+  background: #ffeded;
+  color: #df3e43;
+}
+.client-quotation-page .quotation-status.cancelled {
+  background: #edf3f5;
+  color: #809ca5;
 }
 .client-quotation-page .country-table-wrap td b,
 .client-quotation-page .client-status-legend b,
@@ -655,15 +674,16 @@
   color: #00a6c9;
 }
 .client-main:has(.client-quotation-page) .client-topbar {
-  background: linear-gradient(110deg, #f2fcff, #e8fbff);
-  color: #00a6c9;
-  border-bottom: 1px solid #c4eff9;
+  min-height: 106px;
+  background: linear-gradient(110deg, #20abc2, #1798b6);
+  color: #fff;
+  border-bottom: 2px solid #42d8ed;
 }
 .client-main:has(.client-quotation-page) .client-topbar :is(p, b, strong) {
-  color: #00a6c9;
+  color: #fff;
 }
 .client-main:has(.client-quotation-page) .client-topbar small {
-  color: #009ac0;
+  color: #e7fbff;
 }
 .client-quotation-preview .quotation-qr span {
   min-width: 0;
@@ -673,4 +693,108 @@
   text-align: center;
   font-size: 8px;
   line-height: 1.4;
+}
+.client-app-shell:has(.client-quotation-page) .client-main {
+  width: auto;
+  min-width: 0;
+  flex: 1 1 0%;
+}
+.client-main:has(.client-quotation-page) .client-quotation-topbar {
+  display: flex;
+  gap: 18px;
+  padding: 10px;
+  font-family: Arial, Helvetica, sans-serif;
+}
+.client-quotation-brand {
+  display: inline-flex;
+  align-items: center;
+  gap: 2px;
+  padding-right: 18px;
+  border-right: 3px solid #fff;
+  color: #fff;
+  text-decoration: none;
+}
+.client-quotation-brand span {
+  display: grid;
+  width: 78px;
+  height: 78px;
+  place-items: center;
+  border: 2px solid #fff;
+  border-radius: 50%;
+  font-size: 35px;
+  font-weight: 700;
+}
+.client-quotation-brand b {
+  font-size: 24px;
+}
+.client-quotation-welcome {
+  display: grid;
+  align-content: center;
+  gap: 2px;
+  min-width: 0;
+  color: #fff;
+}
+.client-quotation-welcome span {
+  font-size: 24px;
+  font-weight: 700;
+}
+.client-quotation-welcome strong {
+  overflow: hidden;
+  font-size: 34px;
+  line-height: 1.1;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.client-quotation-avatar {
+  display: grid;
+  flex: 0 0 66px;
+  width: 66px;
+  height: 66px;
+  margin-left: auto;
+  place-items: center;
+  border-radius: 50%;
+  background: #fff;
+  color: #20a5bd;
+  font-size: 27px;
+  font-weight: 700;
+}
+.client-app-shell:has(.client-quotation-page) .client-main .client-fee-selection > h2 {
+  padding: 9px 2px 5px;
+  background: transparent !important;
+  color: #00a6c9 !important;
+}
+@media (max-width: 600px) {
+  .client-main:has(.client-quotation-page) .client-quotation-topbar {
+    min-height: 78px;
+    gap: 10px;
+    padding: 8px 8px 8px 58px;
+  }
+  .client-quotation-brand {
+    padding-right: 10px;
+  }
+  .client-quotation-brand span {
+    width: 52px;
+    height: 52px;
+    font-size: 23px;
+  }
+  .client-quotation-brand b {
+    font-size: 17px;
+  }
+  .client-quotation-welcome span {
+    font-size: 16px;
+  }
+  .client-quotation-welcome strong {
+    font-size: 20px;
+  }
+  .client-quotation-avatar {
+    flex-basis: 48px;
+    width: 48px;
+    height: 48px;
+    font-size: 20px;
+  }
+}
+@media (min-width: 601px) and (max-width: 1023px) {
+  .client-main:has(.client-quotation-page) .client-quotation-topbar {
+    padding-left: 58px;
+  }
 }
