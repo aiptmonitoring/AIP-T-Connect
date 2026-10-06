@@ -1,8 +1,4 @@
 'use client';
-import ClientManagement from '../../../src/components/ClientManagement';
-import dynamic from 'next/dynamic';
-const AdminPoaPage = dynamic(() => import('../../poa/page'), { loading: () => <p>Loading management form...</p> });
-
 import { FormEvent, useCallback, useEffect, useMemo, useState } from 'react';
 import { fetchSupabaseFunction } from '../../../src/lib/supabase/browser';
 import './poa.css';
@@ -20,6 +16,19 @@ type POADocument = {
 type POAResponse = { data: POADocument[]; countries: Country[] };
 
 const PAGE_SIZE = 12;
+
+function formatFileSize(size: number | null | undefined) {
+  if (size == null || !Number.isFinite(size) || size < 0) return '';
+  if (size < 1024) return `${size} B`;
+  if (size < 1024 * 1024) return `${(size / 1024).toFixed(1)} KB`;
+  return `${(size / (1024 * 1024)).toFixed(1)} MB`;
+}
+
+function formatUpdatedDate(value: string | null | undefined) {
+  if (!value) return '';
+  const date = new Date(value);
+  return Number.isNaN(date.getTime()) ? '' : new Intl.DateTimeFormat('en', { dateStyle: 'medium' }).format(date);
+}
 
 async function getDownloadUrl(item: POADocument) {
   const parameter = item.id.startsWith('legacy:') ? `key=${encodeURIComponent(item.key)}` : `id=${encodeURIComponent(item.id)}`;
@@ -44,10 +53,10 @@ function ClientPoaPage() {
   const [countries, setCountries] = useState<Country[]>([]);
   const [countryFilter, setCountryFilter] = useState('');
   const [appliedCountry, setAppliedCountry] = useState('');
-  const [tableSearch, setTableSearch] = useState('');
   const [page, setPage] = useState(1);
   const [loading, setLoading] = useState(true);
   const [downloading, setDownloading] = useState(false);
+  const [downloadingId, setDownloadingId] = useState('');
   const [error, setError] = useState('');
   const [downloadStatus, setDownloadStatus] = useState('');
 
@@ -75,12 +84,10 @@ function ClientPoaPage() {
   }, [loadDocuments]);
 
   const filteredDocuments = useMemo(() => documents
-    .filter(({ countries: linked }) => !appliedCountry || linked.some(country => country.id === 'shared-all' || country.id === appliedCountry))
-    .filter(({ countries: linked, document_name, last_modified }) => {
-      const query = tableSearch.trim().toLowerCase();
-      return !query || [linked.map(country => country.name).join(' '), document_name, last_modified ?? ''].some(value => value.toLowerCase().includes(query));
-    })
-    .sort((a, b) => a.document_name.localeCompare(b.document_name)), [documents, appliedCountry, tableSearch]);
+    .filter(({ countries: linked }) => !appliedCountry || linked.some(country =>
+      country.id === 'shared-all' || country.id === appliedCountry || country.name.trim().toLowerCase() === 'all countries'
+    ))
+    .sort((a, b) => a.document_name.localeCompare(b.document_name)), [documents, appliedCountry]);
   const pageCount = Math.max(1, Math.ceil(filteredDocuments.length / PAGE_SIZE));
   const currentPage = Math.min(page, pageCount);
   const visibleDocuments = filteredDocuments.slice((currentPage - 1) * PAGE_SIZE, currentPage * PAGE_SIZE);
@@ -92,17 +99,21 @@ function ClientPoaPage() {
   };
 
   const downloadOne = async (item: POADocument) => {
+    if (downloading || downloadingId) return;
     setError('');
     setDownloadStatus('');
+    setDownloadingId(item.id);
     try {
       triggerDownload(await getDownloadUrl(item));
     } catch (cause) {
       setError(cause instanceof Error ? cause.message : 'Unable to download this POA document.');
+    } finally {
+      setDownloadingId('');
     }
   };
 
-  const downloadAllPdfs = async () => {
-    if (!filteredDocuments.length || downloading) return;
+  const downloadAllDocuments = async () => {
+    if (!filteredDocuments.length || downloading || downloadingId) return;
     setError('');
     setDownloadStatus(`Preparing ${filteredDocuments.length} document${filteredDocuments.length === 1 ? '' : 's'}...`);
     setDownloading(true);
@@ -135,9 +146,8 @@ function ClientPoaPage() {
 
     <section className="poa-results-panel" aria-label="POA documents">
       <div className="poa-results-toolbar">
-        <label className="poa-table-search" htmlFor="poa-table-search"><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="10.8" cy="10.8" r="6.3"/><path d="m16 16 5 5"/></svg><input id="poa-table-search" type="search" value={tableSearch} onChange={(event) => { setTableSearch(event.target.value); setPage(1); }} placeholder="Search documents..." /></label>
-        <span aria-live="polite">{downloadStatus}</span>
-        <button type="button" className="poa-download-all" onClick={downloadAllPdfs} disabled={loading || downloading || filteredDocuments.length === 0}>
+        <span className="poa-results-count">{filteredDocuments.length} {filteredDocuments.length === 1 ? 'document' : 'documents'}{downloadStatus && <span className="poa-download-status" role="status">{downloadStatus}</span>}</span>
+        <button type="button" className="poa-download-all" onClick={downloadAllDocuments} disabled={loading || downloading || filteredDocuments.length === 0}>
           <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3v12m-5-5 5 5 5-5M4 17v4h16v-4"/></svg>
           {downloading ? 'Preparing downloads...' : 'Download All Documents'}
         </button>
@@ -146,30 +156,30 @@ function ClientPoaPage() {
       {error && <p className="poa-error" role="alert">{error}</p>}
       <div className="poa-table-wrap">
         <table className="poa-table">
-          <thead><tr><th scope="col">Country</th><th scope="col">Doc Name</th><th scope="col">Format</th><th scope="col">AWS Size</th><th scope="col">AWS Storage Class</th><th scope="col">AWS ETag</th><th scope="col">AWS Last Modified</th><th scope="col">Download</th></tr></thead>
+          <caption className="poa-visually-hidden">Power of Attorney documents available to your account</caption>
+          <thead><tr><th scope="col">Country</th><th scope="col">Doc Name</th><th scope="col">Download</th></tr></thead>
           <tbody>
-            {loading && <tr><td colSpan={8} className="poa-empty">Loading POA documents...</td></tr>}
+            {loading && <tr><td colSpan={3} className="poa-empty"><span className="poa-loading-mark" aria-hidden="true" />Loading POA documents...</td></tr>}
             {!loading && !error && visibleDocuments.map((item) => <tr key={item.id}>
-              <td><span className="poa-country-cell">{item.countries.map(country => <span className="poa-country-cell" key={country.id}>{country.flag_url ? <img src={country.flag_url} alt="" /> : <span className="poa-country-initials">{country.abbreviation}</span>}<span>{country.name}</span></span>)}</span></td>
-              <td>{item.document_name}</td>
-              <td>{item.key.split('.').pop()?.toUpperCase() || '—'}</td>
-              <td>{item.aws_metadata?.size_bytes == null ? '—' : `${(item.aws_metadata.size_bytes / 1024).toFixed(1)} KB`}</td>
-              <td>{item.aws_metadata?.storage_class || '—'}</td>
-              <td title={item.aws_metadata?.etag || undefined}>{item.aws_metadata?.etag || '—'}</td>
-              <td>{(item.aws_metadata?.last_modified || item.last_modified) ? new Intl.DateTimeFormat('en-US', { dateStyle: 'medium', timeStyle: 'short' }).format(new Date(item.aws_metadata?.last_modified || item.last_modified!)) : '—'}</td>
-              <td><button type="button" className="poa-download-button" onClick={() => void downloadOne(item)} aria-label={`Download ${item.document_name}`}><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3v12m-5-5 5 5 5-5M4 17v4h16v-4"/></svg></button></td>
+              <td><span className="poa-country-list">{item.countries.map(country => <span className="poa-country-cell" key={country.id}>{country.flag_url ? <img src={country.flag_url} alt="" /> : <span className="poa-country-initials">{country.abbreviation}</span>}<span>{country.name}</span></span>)}</span></td>
+              <td><span className="poa-document-cell"><strong className="poa-document-name">{item.document_name}</strong><span className="poa-document-meta">{[
+                item.key.split('.').pop()?.toUpperCase(),
+                formatFileSize(item.aws_metadata?.size_bytes),
+                (item.aws_metadata?.last_modified || item.last_modified) ? `Updated ${formatUpdatedDate(item.aws_metadata?.last_modified || item.last_modified)}` : '',
+              ].filter(Boolean).join(' | ')}</span></span></td>
+              <td><button type="button" className="poa-download-button" onClick={() => void downloadOne(item)} disabled={downloading || Boolean(downloadingId)} aria-label={`Download ${item.document_name}`} title={downloadingId === item.id ? 'Preparing download' : 'Download'}><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3v12m-5-5 5 5 5-5M4 17v4h16v-4"/></svg></button></td>
             </tr>)}
-            {!loading && !error && !visibleDocuments.length && <tr><td colSpan={8} className="poa-empty">{tableSearch ? 'No documents match your search.' : appliedCountry ? 'No POA documents are available for this country.' : 'No POA documents are currently available.'}</td></tr>}
+            {!loading && !error && !visibleDocuments.length && <tr><td colSpan={3} className="poa-empty"><strong>{appliedCountry ? 'No documents for this country yet' : 'No POA documents available'}</strong><span>{appliedCountry ? 'Try selecting another country or clear the filter.' : 'Your available Power of Attorney documents will appear here.'}</span>{appliedCountry && <button type="button" onClick={() => { setCountryFilter(''); setAppliedCountry(''); setPage(1); }}>Clear country filter</button>}</td></tr>}
           </tbody>
         </table>
       </div>
 
       <footer className="poa-pagination">
-        <span>Showing {filteredDocuments.length ? (currentPage - 1) * PAGE_SIZE + 1 : 0}-{Math.min(currentPage * PAGE_SIZE, filteredDocuments.length)} of {filteredDocuments.length} results</span>
+        <span>Showing {filteredDocuments.length ? (currentPage - 1) * PAGE_SIZE + 1 : 0}-{Math.min(currentPage * PAGE_SIZE, filteredDocuments.length)} of {filteredDocuments.length} documents</span>
         <nav aria-label="POA document pages">
           <button type="button" onClick={() => setPage(1)} disabled={currentPage === 1}>First</button>
           <button type="button" onClick={() => setPage((value) => Math.max(1, value - 1))} disabled={currentPage === 1}>Previous</button>
-          <span aria-live="polite">{currentPage}</span>
+          <span aria-live="polite">{currentPage} / {pageCount}</span>
           <button type="button" onClick={() => setPage((value) => Math.min(pageCount, value + 1))} disabled={currentPage === pageCount}>Next</button>
           <button type="button" onClick={() => setPage(pageCount)} disabled={currentPage === pageCount}>Last</button>
         </nav>
@@ -178,4 +188,4 @@ function ClientPoaPage() {
   </main>;
 }
 
-export default function ManagedPage() { return <ClientManagement manager={<AdminPoaPage />}><ClientPoaPage /></ClientManagement>; }
+export default function ClientPoaRoute() { return <ClientPoaPage />; }
