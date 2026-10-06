@@ -6,6 +6,7 @@ const AdminPoaPage = dynamic(() => import('../../poa/page'), { loading: () => <p
 import { FormEvent, useCallback, useEffect, useMemo, useState } from 'react';
 import { fetchSupabaseFunction } from '../../../src/lib/supabase/browser';
 import './poa.css';
+import '../client-documents.css';
 
 type Country = { id: string; name: string; abbreviation: string; flag_url: string | null };
 type POADocument = {
@@ -14,6 +15,7 @@ type POADocument = {
   countries: Country[];
   document_name: string;
   last_modified: string | null;
+  aws_metadata: { size_bytes: number | null; etag: string | null; storage_class: string | null; last_modified: string | null } | null;
 };
 type POAResponse = { data: POADocument[]; countries: Country[] };
 
@@ -116,7 +118,7 @@ function ClientPoaPage() {
     }
   };
 
-  return <main className="poa-page">
+  return <main className="poa-page client-poa-page">
     <div className="poa-title"><span aria-hidden="true" className="poa-title-icon"><svg viewBox="0 0 24 24"><path d="M5 2h10l5 5v15H5z"/><path d="M14 2v6h6M8 12h8M8 16h8"/></svg></span><h1>POA</h1></div>
     <section className="poa-filter-panel" aria-label="Filter POA documents">
       <form onSubmit={applyFilter}>
@@ -144,16 +146,20 @@ function ClientPoaPage() {
       {error && <p className="poa-error" role="alert">{error}</p>}
       <div className="poa-table-wrap">
         <table className="poa-table">
-          <thead><tr><th scope="col">Country</th><th scope="col">Doc Name</th><th scope="col">Date</th><th scope="col">Download</th></tr></thead>
+          <thead><tr><th scope="col">Country</th><th scope="col">Doc Name</th><th scope="col">Format</th><th scope="col">AWS Size</th><th scope="col">AWS Storage Class</th><th scope="col">AWS ETag</th><th scope="col">AWS Last Modified</th><th scope="col">Download</th></tr></thead>
           <tbody>
-            {loading && <tr><td colSpan={4} className="poa-empty">Loading POA documents...</td></tr>}
+            {loading && <tr><td colSpan={8} className="poa-empty">Loading POA documents...</td></tr>}
             {!loading && !error && visibleDocuments.map((item) => <tr key={item.id}>
               <td><span className="poa-country-cell">{item.countries.map(country => <span className="poa-country-cell" key={country.id}>{country.flag_url ? <img src={country.flag_url} alt="" /> : <span className="poa-country-initials">{country.abbreviation}</span>}<span>{country.name}</span></span>)}</span></td>
               <td>{item.document_name}</td>
-              <td>{item.last_modified ? new Intl.DateTimeFormat('en-US', { dateStyle: 'medium' }).format(new Date(item.last_modified)) : '—'}</td>
+              <td>{item.key.split('.').pop()?.toUpperCase() || '—'}</td>
+              <td>{item.aws_metadata?.size_bytes == null ? '—' : `${(item.aws_metadata.size_bytes / 1024).toFixed(1)} KB`}</td>
+              <td>{item.aws_metadata?.storage_class || '—'}</td>
+              <td title={item.aws_metadata?.etag || undefined}>{item.aws_metadata?.etag || '—'}</td>
+              <td>{(item.aws_metadata?.last_modified || item.last_modified) ? new Intl.DateTimeFormat('en-US', { dateStyle: 'medium', timeStyle: 'short' }).format(new Date(item.aws_metadata?.last_modified || item.last_modified!)) : '—'}</td>
               <td><button type="button" className="poa-download-button" onClick={() => void downloadOne(item)} aria-label={`Download ${item.document_name}`}><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3v12m-5-5 5 5 5-5M4 17v4h16v-4"/></svg></button></td>
             </tr>)}
-            {!loading && !error && !visibleDocuments.length && <tr><td colSpan={4} className="poa-empty">{tableSearch ? 'No documents match your search.' : appliedCountry ? 'No POA documents are available for this country.' : 'No POA documents are currently available.'}</td></tr>}
+            {!loading && !error && !visibleDocuments.length && <tr><td colSpan={8} className="poa-empty">{tableSearch ? 'No documents match your search.' : appliedCountry ? 'No POA documents are available for this country.' : 'No POA documents are currently available.'}</td></tr>}
           </tbody>
         </table>
       </div>

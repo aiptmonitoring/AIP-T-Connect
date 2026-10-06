@@ -18,7 +18,8 @@ type Country = { id: string; name: string; abbreviation: string; flag_url: strin
 type DocumentCountryLink = { country: Country | Country[] | null };
 type StoredDocument = { id: string; document_name: string; s3_key: string; created_at: string; updated_at: string; poa_document_countries?: DocumentCountryLink[] };
 type DownloadDocument = { id: string; document_name: string; s3_key: string; poa_document_countries: Array<{ country_id: string }> };
-type ListedDocument = { id: string; key: string; document_name: string; countries: Country[]; last_modified: string | null };
+type AwsObjectMetadata = { size_bytes: number | null; etag: string | null; storage_class: string | null; last_modified: string | null };
+type ListedDocument = { id: string; key: string; document_name: string; countries: Country[]; last_modified: string | null; aws_metadata: AwsObjectMetadata | null };
 const sharedCountry: Country = { id: "shared-all", name: "All Countries", abbreviation: "ALL", flag_url: null };
 
 function matchCountry(key: string, countries: Country[]) {
@@ -111,11 +112,19 @@ async function listStoredDocuments(db: ReturnType<typeof createClient>) {
 async function listLegacyDocuments(countries: Country[], isAdmin: boolean) {
   const storage = getS3();
   const legacy: ListedDocument[] = [];
+  const metadataByKey = new Map<string, AwsObjectMetadata>();
   let token: string | undefined;
   do {
     const result = await storage.send(new ListObjectsV2Command({ Bucket: bucket, Prefix: prefix, ContinuationToken: token, MaxKeys: 1000 }));
     for (const object of result.Contents ?? []) {
       if (!object.Key || object.Key.endsWith("/") || !allowed.has(extension(object.Key))) continue;
+      const metadata: AwsObjectMetadata = {
+        size_bytes: object.Size ?? null,
+        etag: object.ETag?.replace(/^"|"$/g, "") ?? null,
+        storage_class: object.StorageClass ?? null,
+        last_modified: object.LastModified?.toISOString() ?? null,
+      };
+      metadataByKey.set(object.Key, metadata);
       const country = object.Key.startsWith(`${prefix}shared/`) || object.Key === `${prefix}Client Design Proposal.docx`
         ? sharedCountry
         : matchCountry(object.Key, countries);
@@ -125,12 +134,13 @@ async function listLegacyDocuments(countries: Country[], isAdmin: boolean) {
         key: object.Key,
         document_name: documentName(object.Key),
         countries: country ? [country] : [{ id: "unassigned", name: "Unassigned", abbreviation: "", flag_url: null }],
-        last_modified: object.LastModified?.toISOString() ?? null,
+        last_modified: metadata.last_modified,
+        aws_metadata: metadata,
       });
     }
     token = result.IsTruncated ? result.NextContinuationToken : undefined;
   } while (token);
-  return legacy;
+  return { documents: legacy, metadataByKey };
 }
 
 async function signDocument(key: string, name: string) {
@@ -178,16 +188,17 @@ Deno.serve(async request => {
     }
 
     if (request.method === "GET") {
-      const [storedDocuments, legacy] = await Promise.all([
+      const [storedDocuments, legacyResult] = await Promise.all([
         listStoredDocuments(auth.db),
         listLegacyDocuments(auth.allCountries, isAdmin),
       ]);
       const storedKeys = new Set(storedDocuments.map(item => item.s3_key));
       const documents: ListedDocument[] = storedDocuments.map(item => {
         const countries = countriesFromLinks(item.poa_document_countries);
-        return { id: item.id, key: item.s3_key, document_name: item.document_name, countries: countries.length ? countries : [sharedCountry], last_modified: item.updated_at ?? item.created_at };
+        const awsMetadata = legacyResult.metadataByKey.get(item.s3_key) ?? null;
+        return { id: item.id, key: item.s3_key, document_name: item.document_name, countries: countries.length ? countries : [sharedCountry], last_modified: awsMetadata?.last_modified ?? item.updated_at ?? item.created_at, aws_metadata: awsMetadata };
       }).filter(item => isAdmin || item.countries[0]?.id === sharedCountry.id || item.countries.some(country => auth.countries.some(allowedCountry => allowedCountry.id === country.id)));
-      const visibleLegacy = legacy.filter(item => !storedKeys.has(item.key) &&
+      const visibleLegacy = legacyResult.documents.filter(item => !storedKeys.has(item.key) &&
         (isAdmin || item.countries.some(country => country.id === sharedCountry.id || auth.countries.some(allowedCountry => allowedCountry.id === country.id))));
       const allDocuments = [...documents, ...visibleLegacy].sort((a, b) => (b.last_modified ?? "").localeCompare(a.last_modified ?? "") || a.document_name.localeCompare(b.document_name));
       return json({ data: allDocuments, countries: auth.allCountries });
